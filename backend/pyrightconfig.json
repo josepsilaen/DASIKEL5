@@ -1,0 +1,17 @@
+{
+  "include": [
+    "app",
+    "tests"
+  ],
+  "exclude": [
+    "**/__pycache__",
+    "venv"
+  ],
+  "venvPath": ".",
+  "venv": "venv",
+  "extraPaths": [
+    "."
+  ],
+  "pythonVersion": "3.13",
+  "pythonPlatform": "Windows"
+}
