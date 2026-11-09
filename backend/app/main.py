@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from app.api.endpoints import health, data_management
+from app.api.endpoints import health, data_management, visualization, dashboard
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -32,6 +32,8 @@ app.add_middleware(
 # Hubungkan router endpoints di bawah prefix /api
 app.include_router(health.router, prefix=settings.API_V1_STR)
 app.include_router(data_management.router, prefix=settings.API_V1_STR)
+app.include_router(visualization.router, prefix=settings.API_V1_STR)
+app.include_router(dashboard.router, prefix=settings.API_V1_STR)
 
 
 @app.get("/", tags=["Root"])

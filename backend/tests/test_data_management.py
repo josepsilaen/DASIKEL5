@@ -282,3 +282,74 @@ def test_get_standard_columns():
     assert "jenis_kelamin" in keys
     assert "berat_badan" in keys
     assert "tinggi_badan" in keys
+    assert "tanggal_lahir" in keys
+    assert "cara_ukur" in keys
+    assert "tanggal_ukur" in keys
+
+
+# ------------------ 11. Test Actual Reference Dataset 12 Columns Mapping ------------------
+
+def test_reference_dataset_columns_mapping():
+    """
+    Menguji bahwa 12 kolom dari dataset aktual terpetakan secara tepat:
+    - JK -> jenis_kelamin
+    - Tgl Lahir -> tanggal_lahir (BUKAN tanggal_ukur)
+    - BB Lahir -> berat_lahir
+    - TB Lahir -> panjang_lahir
+    - Kec -> kecamatan
+    - Pukesmas -> puskesmas
+    - Desa/Kel -> desa_kelurahan
+    - Posyandu -> posyandu
+    - Usia Saat Ukur -> usia_saat_ukur
+    - Tanggal Pengukuran -> tanggal_ukur
+    - Berat -> berat_badan
+    - Tinggi -> tinggi_badan
+    - Cara Ukur -> cara_ukur
+    """
+    from app.services.data_parser import find_suggested_mapping
+
+    reference_cases = {
+        "JK": "jenis_kelamin",
+        "Tgl Lahir": "tanggal_lahir",
+        "BB Lahir": "berat_lahir",
+        "TB Lahir": "panjang_lahir",
+        "Kec": "kecamatan",
+        "Pukesmas": "puskesmas",
+        "Desa/Kel": "desa_kelurahan",
+        "Posyandu": "posyandu",
+        "Usia Saat Ukur": "usia_saat_ukur",
+        "Tanggal Pengukuran": "tanggal_ukur",
+        "Berat": "berat_badan",
+        "Tinggi": "tinggi_badan",
+        "Cara Ukur": "cara_ukur",
+    }
+
+    for col_name, expected_key in reference_cases.items():
+        mapped_key, conf = find_suggested_mapping(col_name)
+        assert mapped_key == expected_key, f"Kolom '{col_name}' dipetakan ke '{mapped_key}', seharusnya '{expected_key}'"
+        assert conf >= 0.90, f"Confidence kolom '{col_name}' kurang tinggi: {conf}"
+
+
+# ------------------ 12. Test Out-of-Scope Age (>=60 months) Quality Profiling ------------------
+
+def test_out_of_scope_age_quality_profiling():
+    headers = ["Usia Saat Ukur", "Jenis Kelamin", "Berat", "Tinggi"]
+    rows = [
+        ["24", "L", "11.0", "85.0"],
+        ["65", "P", "18.0", "110.0"],  # Anak >= 60 bulan (di luar cakupan balita 0-59 bln)
+        ["70", "L", "19.5", "112.0"],  # Anak >= 60 bulan
+    ]
+    csv_bytes = create_synthetic_csv_bytes(headers, rows)
+
+    response = client.post(
+        "/api/data/upload-preview",
+        files={"file": ("out_of_scope_age.csv", csv_bytes, "text/csv")},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    issues = data["quality_issues"]
+    out_of_scope_issues = [i for i in issues if i["issue_type"] == "out_of_scope_age"]
+    assert len(out_of_scope_issues) == 1
+    assert out_of_scope_issues[0]["affected_rows_count"] == 2
+    assert "≥ 60 bulan" in out_of_scope_issues[0]["message"]

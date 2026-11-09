@@ -39,3 +39,17 @@ Thumbs.db
 !.vscode/settings.json
 !.vscode/tasks.json
 .idea/
+
+# Data, Databases & Datasets (PII Security)
+*.csv
+*.xlsx
+*.xls
+*.db
+*.sqlite
+*.sqlite3
+backend/data/
+uploads/
+temp/
+
+# Ignore personal / unrelated folders
+New folder/

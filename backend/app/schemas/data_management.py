@@ -15,12 +15,14 @@ class ColumnSummary(BaseModel):
     null_percentage: float = Field(..., description="Persentase nilai kosong terhadap total baris")
     sample_values: List[str] = Field(default_factory=list, description="Sampel nilai unik (tersamar jika PII)")
     is_pii: bool = Field(default=False, description="Apakah kolom terindikasi memuat data identitas pribadi")
+    pii_status: Optional[str] = Field(default="safe", description="Status deteksi PII: 'confirmed', 'suspicious', atau 'safe'")
+    pii_reason: Optional[str] = Field(default=None, description="Alasan deteksi PII atau perlunya pemeriksaan manual")
     suggested_mapping: Optional[str] = Field(default=None, description="Kandidat kolom standar aplikasi yang cocok")
     mapping_confidence: float = Field(default=0.0, description="Tingkat kecocokan kandidat pemetaan (0.0 - 1.0)")
 
 
 class QualityIssue(BaseModel):
-    issue_type: str = Field(..., description="Kategori isu (missing_values, duplicates, invalid_range, type_mismatch, unmapped)")
+    issue_type: str = Field(..., description="Kategori isu (missing_values, duplicates, invalid_range, type_mismatch, unmapped, suspicious_pii)")
     severity: str = Field(..., description="Tingkat keparahan (error, warning, info)")
     column: Optional[str] = Field(default=None, description="Nama kolom terkait jika spesifik")
     message: str = Field(..., description="Penjelasan isu kualitas data yang ramah pengguna")
