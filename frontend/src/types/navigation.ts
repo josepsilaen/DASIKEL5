@@ -44,8 +44,8 @@ export const navItems: NavItem[] = [
     id: 'visualisasi',
     label: 'Visualisasi',
     iconName: 'BarChart3',
-    available: false,
-    description: 'Grafik dan peta interaktif',
+    available: true,
+    description: 'Distribusi statistik dan antropometri balita',
   },
   {
     id: 'pengaturan',

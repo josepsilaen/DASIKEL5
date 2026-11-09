@@ -41,13 +41,13 @@ export const DatasetPreviewTable: React.FC<DatasetPreviewTableProps> = ({
   return (
     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
       {/* Header Panel */}
-      <div className="p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="p-5 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <h3 className="text-[15px] font-semibold text-slate-800">
+            <h3 className="text-[16px] font-bold text-slate-800 tracking-tight">
               Pratinjau Data Balita ({filteredRows.length.toLocaleString('id-ID')} baris)
             </h3>
-            <span className="text-[11px] font-medium bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
+            <span className="text-[11.5px] font-medium bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full border border-slate-200">
               Sumber: {filename}
             </span>
           </div>
@@ -57,10 +57,10 @@ export const DatasetPreviewTable: React.FC<DatasetPreviewTableProps> = ({
         </div>
 
         {/* Action Controls: Search & Privacy Toggle */}
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
           {/* Search Input */}
           <div className="relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               placeholder="Cari nilai di tabel…"
@@ -69,7 +69,7 @@ export const DatasetPreviewTable: React.FC<DatasetPreviewTableProps> = ({
                 setSearchTerm(e.target.value);
                 setCurrentPage(1);
               }}
-              className="pl-9 pr-3 py-1.5 text-[13px] rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 w-48 sm:w-56"
+              className="pl-8.5 pr-3 py-1.5 text-[12.5px] sm:text-[13px] rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 w-44 sm:w-52"
             />
           </div>
 
@@ -78,7 +78,7 @@ export const DatasetPreviewTable: React.FC<DatasetPreviewTableProps> = ({
             <button
               type="button"
               onClick={() => setMaskPii(!maskPii)}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium border transition-colors ${
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold border transition-colors ${
                 maskPii
                   ? 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100'
                   : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
@@ -97,7 +97,7 @@ export const DatasetPreviewTable: React.FC<DatasetPreviewTableProps> = ({
               setPageSize(Number(e.target.value));
               setCurrentPage(1);
             }}
-            className="text-[12px] border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/20"
+            className="text-[12px] font-medium border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500/20 bg-white"
           >
             <option value={10}>10 baris</option>
             <option value={25}>25 baris</option>
@@ -109,24 +109,24 @@ export const DatasetPreviewTable: React.FC<DatasetPreviewTableProps> = ({
       {/* Info Banner Sumber Data */}
       <div className="px-5 py-2.5 bg-slate-50 border-b border-slate-100 text-[12px] text-slate-600 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <FileSpreadsheet className="w-4 h-4 text-teal-600" />
+          <FileSpreadsheet className="w-3.5 h-3.5 text-teal-600" />
           <span>
-            Data di bawah ini dibaca langsung secara sementara dari file <span className="font-semibold text-slate-800">{filename}</span>.
+            Data di bawah ini dibaca langsung secara sementara dari file <span className="font-bold text-slate-800">{filename}</span>.
           </span>
         </div>
-        <span className="text-[11px] text-slate-400">
+        <span className="text-[11.5px] font-medium text-slate-500">
           Halaman {validCurrentPage} dari {totalPages}
         </span>
       </div>
 
       {/* Table Area */}
       <div className="overflow-x-auto">
-        <table className="w-full text-left text-[13px]">
+        <table className="w-full text-left text-[12.5px] sm:text-[13px]">
           <thead>
-            <tr className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-              <th className="px-4 py-3 text-center w-12">#</th>
+            <tr className="border-b border-slate-200 bg-slate-50/80 text-[11px] sm:text-[11.5px] font-semibold text-slate-500 uppercase tracking-wider">
+              <th className="px-4 py-2.5 text-center w-12">#</th>
               {columns.map((c) => (
-                <th key={c.name} className="px-4 py-3 whitespace-nowrap">
+                <th key={c.name} className="px-4 py-2.5 whitespace-nowrap">
                   <div className="flex items-center gap-1.5">
                     <span>{c.name}</span>
                     {c.is_pii && (
@@ -135,7 +135,7 @@ export const DatasetPreviewTable: React.FC<DatasetPreviewTableProps> = ({
                       </span>
                     )}
                   </div>
-                  <span className="block text-[10px] font-normal text-slate-400 capitalize mt-0.5">
+                  <span className="block text-[10.5px] font-mono text-slate-400 capitalize mt-0.5 font-normal">
                     {c.detected_type}
                   </span>
                 </th>
@@ -154,7 +154,7 @@ export const DatasetPreviewTable: React.FC<DatasetPreviewTableProps> = ({
                 const globalIndex = startIndex + rowIdx + 1;
                 return (
                   <tr key={rowIdx} className="hover:bg-slate-50/60 transition-colors">
-                    <td className="px-4 py-3 text-center text-slate-400 text-[11px] font-mono">
+                    <td className="px-4 py-2.5 text-center text-slate-400 text-[11px] font-mono">
                       {globalIndex}
                     </td>
                     {columns.map((col) => {
@@ -163,11 +163,11 @@ export const DatasetPreviewTable: React.FC<DatasetPreviewTableProps> = ({
                       const isPiiCol = col.is_pii;
 
                       return (
-                        <td key={col.name} className="px-4 py-3 text-slate-700 whitespace-nowrap">
+                        <td key={col.name} className="px-4 py-2.5 text-slate-700 whitespace-nowrap">
                           {isNull ? (
                             <span className="text-slate-300 italic text-[11px]">-</span>
                           ) : isPiiCol && !maskPii ? (
-                            <span className="font-mono text-purple-900 bg-purple-50 px-1.5 py-0.5 rounded">
+                            <span className="font-mono text-purple-900 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200 font-medium text-[12px]">
                               {String(val)}
                             </span>
                           ) : (
@@ -185,11 +185,11 @@ export const DatasetPreviewTable: React.FC<DatasetPreviewTableProps> = ({
       </div>
 
       {/* Pagination Footer */}
-      <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-[13px]">
-        <p className="text-slate-500 text-[12px]">
-          Menampilkan baris <span className="font-semibold text-slate-700">{filteredRows.length > 0 ? startIndex + 1 : 0}</span> sampai{' '}
-          <span className="font-semibold text-slate-700">{Math.min(startIndex + pageSize, filteredRows.length)}</span> dari total{' '}
-          <span className="font-semibold text-slate-700">{filteredRows.length}</span> baris
+      <div className="p-4 border-t border-slate-100 bg-slate-50/70 flex flex-col sm:flex-row items-center justify-between gap-3 text-[12.5px] sm:text-[13px]">
+        <p className="text-slate-600">
+          Menampilkan baris <span className="font-bold text-slate-800">{filteredRows.length > 0 ? startIndex + 1 : 0}</span> sampai{' '}
+          <span className="font-bold text-slate-800">{Math.min(startIndex + pageSize, filteredRows.length)}</span> dari total{' '}
+          <span className="font-bold text-slate-800">{filteredRows.length}</span> baris
         </p>
 
         <div className="flex items-center gap-1.5">
@@ -197,20 +197,20 @@ export const DatasetPreviewTable: React.FC<DatasetPreviewTableProps> = ({
             type="button"
             disabled={validCurrentPage <= 1}
             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-            className="p-1.5 rounded-lg border border-slate-300 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="p-1.5 rounded-lg border border-slate-300 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors bg-white shadow-2xs"
           >
-            <ChevronLeft className="w-4 h-4 text-slate-600" />
+            <ChevronLeft className="w-3.5 h-3.5 text-slate-600" />
           </button>
-          <span className="px-3 py-1 text-[12px] font-medium text-slate-700">
+          <span className="px-3 py-1 text-[12px] font-semibold text-slate-700">
             {validCurrentPage} / {totalPages}
           </span>
           <button
             type="button"
             disabled={validCurrentPage >= totalPages}
             onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-            className="p-1.5 rounded-lg border border-slate-300 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="p-1.5 rounded-lg border border-slate-300 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors bg-white shadow-2xs"
           >
-            <ChevronRight className="w-4 h-4 text-slate-600" />
+            <ChevronRight className="w-3.5 h-3.5 text-slate-600" />
           </button>
         </div>
       </div>

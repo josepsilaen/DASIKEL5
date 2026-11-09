@@ -1,20 +1,31 @@
 /**
- * Data contoh (dummy) untuk preview UI dashboard.
+ * Sumber Data Sintetis (Dummy) untuk Preview UI Dashboard Utama.
  *
- * PENTING: Seluruh data di file ini adalah data sintetis/fiktif yang dibuat
- * semata-mata untuk keperluan perancangan antarmuka. Data ini TIDAK mewakili
- * kondisi nyata di Kabupaten Toba dan tidak mengandung informasi identitas
- * pribadi siapapun.
+ * PENTING:
+ * 1. Seluruh data di file ini adalah data sintetis/fiktif statis yang dibuat
+ *    semata-mata untuk keperluan perancangan dan evaluasi antarmuka (UI prototype).
+ * 2. Data ini TIDAK mewakili kondisi nyata atau hasil penelitian di Kabupaten Toba.
+ * 3. File ini dipisahkan secara eksplisit dari komponen tampilan agar dapat dengan mudah
+ *    digantikan dengan data agregasi riil dari Puskesmas ketika skema final telah ditetapkan.
  */
+
+export const DASHBOARD_DATA_METADATA = {
+  isSynthetic: true,
+  environment: 'development_prototype',
+  label: 'Data Sintetis / Dummy',
+  disclaimer:
+    'Seluruh data pada file ini adalah data tiruan untuk pengujian UI dan bukan hasil penelitian Kabupaten Toba.',
+} as const;
 
 // ---------- Stat Cards ----------
 
 export interface StatCardData {
   label: string;
-  value: number;
+  value: number | string;
   unit: string;
   description: string;
   trend?: { value: number; direction: 'up' | 'down' | 'neutral' };
+  isSynthetic?: boolean;
 }
 
 export const statCards: StatCardData[] = [
@@ -22,27 +33,31 @@ export const statCards: StatCardData[] = [
     label: 'Total Data Balita',
     value: 1247,
     unit: 'anak',
-    description: 'Jumlah entri data balita yang tercatat dalam sistem contoh',
+    description: 'Jumlah sampel balita pada dataset contoh untuk pengujian tata letak',
+    isSynthetic: true,
   },
   {
     label: 'Data Valid',
     value: 1083,
     unit: 'entri',
-    description: 'Entri yang memenuhi kelengkapan atribut minimum',
+    description: 'Entri simulasi yang memenuhi kelengkapan atribut minimum',
     trend: { value: 86.8, direction: 'up' },
+    isSynthetic: true,
   },
   {
     label: 'Perlu Diperiksa',
     value: 164,
     unit: 'entri',
-    description: 'Entri dengan atribut tidak lengkap atau di luar rentang wajar',
+    description: 'Entri simulasi dengan atribut tidak lengkap atau di luar rentang wajar',
     trend: { value: 13.2, direction: 'down' },
+    isSynthetic: true,
   },
   {
     label: 'Cakupan Wilayah',
     value: 14,
     unit: 'kecamatan',
-    description: 'Jumlah kecamatan yang tercakup dalam data contoh',
+    description: 'Kecamatan simulasi dalam cakupan data contoh pengembangan',
+    isSynthetic: true,
   },
 ];
 

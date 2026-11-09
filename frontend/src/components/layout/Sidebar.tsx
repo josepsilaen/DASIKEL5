@@ -49,16 +49,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const sidebarContent = (
     <div className="flex flex-col h-full">
       {/* Brand */}
-      <div className="px-6 py-5 border-b border-slate-700/50">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-teal-600 flex items-center justify-center flex-shrink-0">
-            <Activity className="w-[18px] h-[18px] text-white" />
+      <div className="h-[68px] px-5 border-b border-slate-800 flex items-center flex-shrink-0">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-10 h-10 rounded-xl bg-teal-600 flex items-center justify-center flex-shrink-0 shadow-sm shadow-teal-900/40">
+            <Activity className="w-5 h-5 text-white" />
           </div>
           <div className="min-w-0">
-            <h1 className="text-[15px] font-bold text-white leading-tight truncate">
+            <h1 className="text-[16px] font-bold text-white leading-tight truncate tracking-tight">
               Stunting Toba
             </h1>
-            <p className="text-[11px] text-slate-400 leading-tight mt-0.5">
+            <p className="text-[11.5px] text-slate-400 leading-tight mt-0.5 truncate font-normal">
               Risk Analysis Dashboard
             </p>
           </div>
@@ -67,8 +67,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        <p className="px-3 pb-2 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">
-          Menu
+        <p className="px-3 pb-1.5 text-[11px] font-bold tracking-wider text-slate-400 uppercase">
+          Menu Navigasi
         </p>
         {navItems.map((item) => {
           const Icon = iconMap[item.iconName] ?? LayoutDashboard;
@@ -82,24 +82,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
               onClick={() => handleNav(item)}
               disabled={isDisabled}
               title={isDisabled ? `${item.label} — belum tersedia` : item.description}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[14px] font-medium transition-colors text-left
+              className={`w-full min-h-[42px] flex items-center gap-3 px-3 py-2 rounded-lg text-[14px] font-medium transition-colors text-left
                 ${
                   isActive
-                    ? 'bg-teal-600/15 text-teal-400'
+                    ? 'bg-teal-600/20 text-teal-300 font-semibold shadow-2xs'
                     : isDisabled
-                    ? 'text-slate-500 cursor-not-allowed'
-                    : 'text-slate-300 hover:bg-slate-700/50 hover:text-slate-100'
+                    ? 'text-slate-500 cursor-not-allowed opacity-60'
+                    : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
                 }
               `}
             >
               <Icon
                 className={`w-[18px] h-[18px] flex-shrink-0 ${
-                  isActive ? 'text-teal-400' : 'text-slate-400'
+                  isActive ? 'text-teal-400' : isDisabled ? 'text-slate-500' : 'text-slate-400'
                 }`}
               />
               <span className="truncate">{item.label}</span>
               {isDisabled && (
-                <span className="ml-auto text-[10px] bg-slate-700 text-slate-400 px-1.5 py-0.5 rounded font-medium flex-shrink-0">
+                <span className="ml-auto text-[10.5px] bg-slate-800 text-slate-400 border border-slate-700/60 px-1.5 py-0.5 rounded font-medium flex-shrink-0">
                   Segera
                 </span>
               )}
@@ -109,11 +109,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </nav>
 
       {/* Backend status widget */}
-      <div className="mx-3 mb-4 p-3 rounded-lg bg-slate-800/60 border border-slate-700/40">
-        <div className="flex items-center justify-between mb-2">
+      <div className="mx-3 mb-4 p-3 rounded-xl bg-slate-800/70 border border-slate-700/50">
+        <div className="flex items-center justify-between mb-1.5">
           <div className="flex items-center gap-2">
             <Server className="w-3.5 h-3.5 text-slate-400" />
-            <span className="text-[12px] font-medium text-slate-300">
+            <span className="text-[12px] font-semibold text-slate-200">
               Backend API
             </span>
           </div>
@@ -132,10 +132,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
             />
           </span>
         </div>
-        <div className="flex items-center justify-between text-[11px] text-slate-400">
+        <div className="flex items-center justify-between text-[11.5px] text-slate-400">
           <span>Status</span>
           <span
-            className={`font-medium ${
+            className={`font-semibold ${
               connectionStatus === 'connected'
                 ? 'text-emerald-400'
                 : connectionStatus === 'checking'
@@ -151,9 +151,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </span>
         </div>
         {connectionStatus === 'connected' && latencyMs !== undefined && (
-          <div className="flex items-center justify-between text-[11px] text-slate-400 mt-0.5">
+          <div className="flex items-center justify-between text-[11.5px] text-slate-400 mt-0.5">
             <span>Latensi</span>
-            <span className="font-mono text-slate-300">{latencyMs} ms</span>
+            <span className="font-mono text-slate-200 font-medium">{latencyMs} ms</span>
           </div>
         )}
       </div>
@@ -163,29 +163,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex w-[260px] flex-shrink-0 bg-slate-900 text-slate-200 flex-col min-h-screen border-r border-slate-800">
+      <aside className="hidden lg:flex w-[245px] flex-shrink-0 bg-slate-900 text-slate-200 flex-col min-h-screen border-r border-slate-800 shadow-sm">
         {sidebarContent}
       </aside>
 
       {/* Mobile overlay */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-xs lg:hidden"
           onClick={onMobileClose}
         />
       )}
 
       {/* Mobile drawer */}
       <aside
-        className={`fixed top-0 left-0 z-50 h-full w-[280px] bg-slate-900 text-slate-200 transform transition-transform duration-200 lg:hidden ${
+        className={`fixed top-0 left-0 z-50 h-full w-[275px] bg-slate-900 text-slate-200 transform transition-transform duration-200 lg:hidden shadow-2xl ${
           mobileOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="absolute top-3 right-3">
+        <div className="absolute top-3.5 right-3.5 z-10">
           <button
             type="button"
             onClick={onMobileClose}
-            className="p-1.5 rounded-lg hover:bg-slate-700/60 text-slate-400 hover:text-white transition-colors"
+            className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
           >
             <X className="w-5 h-5" />
           </button>

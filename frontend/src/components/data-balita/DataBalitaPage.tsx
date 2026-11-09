@@ -10,6 +10,7 @@ import {
   uploadDatasetPreview,
   validateColumnMapping,
   getStandardColumns,
+  getActiveDataset,
 } from '../../services/api';
 import type {
   DatasetPreviewResponse,
@@ -17,23 +18,43 @@ import type {
   ValidateMappingResponse,
 } from '../../types/dataManagement';
 import { createSyntheticSampleFile } from '../../data/syntheticSample';
-import { Upload } from 'lucide-react';
+import { Upload, BarChart3 } from 'lucide-react';
 
-export const DataBalitaPage: React.FC = () => {
+interface DataBalitaPageProps {
+  onNavigateToVisualisasi?: () => void;
+}
+
+export const DataBalitaPage: React.FC<DataBalitaPageProps> = ({ onNavigateToVisualisasi }) => {
   const [standardColumns, setStandardColumns] = useState<StandardColumnDefinition[]>([]);
   const [dataset, setDataset] = useState<DatasetPreviewResponse | null>(null);
   const [columnMapping, setColumnMapping] = useState<Record<string, string>>({});
+  const [savedMapping, setSavedMapping] = useState<Record<string, string>>({});
   const [validationResult, setValidationResult] = useState<ValidateMappingResponse | null>(null);
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isValidating, setIsValidating] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Ambil referensi kolom standar saat inisialisasi
+  // Periksa apakah terdapat perubahan pemetaan yang belum disimpan/divalidasi
+  const hasUnsavedMapping = Boolean(
+    dataset &&
+    (Object.keys(columnMapping).length !== Object.keys(savedMapping).length ||
+      Object.keys(columnMapping).some((k) => columnMapping[k] !== savedMapping[k]))
+  );
+
+  // Ambil referensi kolom standar dan dataset aktif saat inisialisasi
   useEffect(() => {
     getStandardColumns()
       .then((cols) => setStandardColumns(cols))
       .catch((err) => console.warn('Gagal memuat definisi kolom standar:', err));
+
+    getActiveDataset()
+      .then((active) => {
+        if (active) {
+          setDataset(active);
+        }
+      })
+      .catch((err) => console.warn('Gagal memuat dataset aktif:', err));
   }, []);
 
   // Saat dataset berhasil dimuat, set inisial mapping dari saran otomatis backend
@@ -46,6 +67,7 @@ export const DataBalitaPage: React.FC = () => {
         }
       });
       setColumnMapping(initialMap);
+      setSavedMapping(initialMap);
       setValidationResult(null);
     }
   }, [dataset]);
@@ -81,6 +103,11 @@ export const DataBalitaPage: React.FC = () => {
       const res = await validateColumnMapping(mappingToValidate);
       setValidationResult(res);
 
+      // Hanya perbarui savedMapping jika lolos validasi (tidak auto-save mapping tidak valid)
+      if (res.is_valid) {
+        setSavedMapping({ ...mappingToValidate });
+      }
+
       // Sinkronkan status kesiapan pada dataset
       if (dataset) {
         setDataset({
@@ -108,17 +135,54 @@ export const DataBalitaPage: React.FC = () => {
         />
 
         {dataset && (
-          <button
-            type="button"
-            onClick={() => {
-              setDataset(null);
-              setErrorMessage(null);
-            }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-[13px] font-medium transition-colors shadow-2xs whitespace-nowrap self-start sm:self-auto"
-          >
-            <Upload className="w-4 h-4 text-slate-500" />
-            Unggah Berkas Lain
-          </button>
+          <div className="flex items-center gap-2.5 self-start sm:self-auto flex-wrap">
+            {onNavigateToVisualisasi && (
+              <div className="flex items-center gap-2">
+                {hasUnsavedMapping && (
+                  <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11.5px] font-semibold bg-amber-50 text-amber-800 border border-amber-300">
+                    Pemetaan belum disimpan
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (hasUnsavedMapping) {
+                      alert(
+                        'Terdapat perubahan pemetaan kolom yang belum divalidasi & disimpan. Silakan klik "Validasi & Simpan Pemetaan" pada bagian Pemetaan Kolom terlebih dahulu.'
+                      );
+                      return;
+                    }
+                    onNavigateToVisualisasi();
+                  }}
+                  disabled={hasUnsavedMapping}
+                  className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-white text-[13px] font-semibold transition-all shadow-2xs whitespace-nowrap ${
+                    hasUnsavedMapping
+                      ? 'bg-slate-400 cursor-not-allowed opacity-60'
+                      : 'bg-teal-600 hover:bg-teal-700 cursor-pointer'
+                  }`}
+                  title={
+                    hasUnsavedMapping
+                      ? 'Simpan dan validasi pemetaan kolom terlebih dahulu sebelum membuka visualisasi'
+                      : 'Buka Visualisasi Data Balita'
+                  }
+                >
+                  <BarChart3 className="w-4 h-4" />
+                  Buka Visualisasi Data
+                </button>
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setDataset(null);
+                setErrorMessage(null);
+              }}
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-[13px] font-medium transition-colors shadow-2xs whitespace-nowrap"
+            >
+              <Upload className="w-4 h-4 text-slate-500" />
+              Unggah Berkas Lain
+            </button>
+          </div>
         )}
       </div>
 
@@ -134,21 +198,21 @@ export const DataBalitaPage: React.FC = () => {
           />
 
           {/* Panduan Kriteria Berkas */}
-          <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-3">
-            <h4 className="text-[14px] font-semibold text-slate-800">
+          <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-3 shadow-2xs">
+            <h4 className="text-[15px] font-bold text-slate-800">
               Ketentuan & Variabel Data Balita
             </h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-[12px] text-slate-600">
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-100">
-                <span className="font-semibold text-teal-800 block mb-1">Variabel Wajib Inti:</span>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-[12.5px] sm:text-[13px] text-slate-600">
+              <div className="p-3.5 rounded-lg bg-slate-50 border border-slate-200/70">
+                <span className="font-bold text-teal-800 block mb-1 text-[13px]">Variabel Wajib Inti:</span>
                 Usia Saat Ukur (bulan), Jenis Kelamin (L/P), Berat Badan (kg), Tinggi Badan (cm).
               </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-100">
-                <span className="font-semibold text-blue-800 block mb-1">Variabel Wilayah:</span>
+              <div className="p-3.5 rounded-lg bg-slate-50 border border-slate-200/70">
+                <span className="font-bold text-blue-800 block mb-1 text-[13px]">Variabel Wilayah:</span>
                 Puskesmas, Desa/Kelurahan, Posyandu untuk pemetaan sebaran kasus stunting Kabupaten Toba.
               </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-100">
-                <span className="font-semibold text-purple-800 block mb-1">Keamanan & Privasi:</span>
+              <div className="p-3.5 rounded-lg bg-slate-50 border border-slate-200/70">
+                <span className="font-bold text-purple-800 block mb-1 text-[13px]">Keamanan & Privasi:</span>
                 Data identitas pribadi (NIK, Nama Lengkap, Alamat) disamarkan otomatis pada pratinjau.
               </div>
             </div>
@@ -175,6 +239,7 @@ export const DataBalitaPage: React.FC = () => {
             onValidateMapping={handleValidateMapping}
             isValidating={isValidating}
             validationResult={validationResult}
+            hasUnsavedChanges={hasUnsavedMapping}
           />
 
           {/* Tabel Pratinjau Data */}

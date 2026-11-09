@@ -4,6 +4,7 @@ import type {
   StandardColumnDefinition,
   ValidateMappingResponse,
 } from '../types/dataManagement';
+import type { DashboardSummaryResponse } from '../types/dashboard';
 
 /**
  * Base URL untuk API Backend.
@@ -149,6 +150,87 @@ export async function getStandardColumns(): Promise<StandardColumnDefinition[]> 
 
   if (!response.ok) {
     throw new Error(`Gagal mengambil definisi kolom standar (${response.status})`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Mengambil dataset aktif saat ini dari backend jika ada.
+ */
+export async function getActiveDataset(): Promise<DatasetPreviewResponse | null> {
+  const endpoint = `${API_BASE_URL}/api/data/active-dataset`;
+  const response = await fetch(endpoint, {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  return response.json();
+}
+
+/**
+ * Mengambil data visualisasi statistik balita dengan filter opsional.
+ */
+export async function fetchVisualizationData(
+  filter?: import('../types/visualization').VisualizationFilterRequest
+): Promise<import('../types/visualization').VisualizationResponse> {
+  const endpoint = `${API_BASE_URL}/api/visualization`;
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify(filter || {}),
+  });
+
+  if (!response.ok) {
+    let errorDetail = 'Gagal memuat data visualisasi.';
+    try {
+      const errJson = await response.json();
+      if (errJson.detail) {
+        errorDetail = errJson.detail;
+      }
+    } catch {
+      errorDetail = `Error HTTP ${response.status}: ${response.statusText}`;
+    }
+    throw new Error(errorDetail);
+  }
+
+  return response.json();
+}
+
+/**
+ * Mengambil ringkasan analitik Dashboard Utama dinamis dari dataset aktif.
+ */
+export async function fetchDashboardSummary(): Promise<DashboardSummaryResponse> {
+  const endpoint = `${API_BASE_URL}/api/dashboard/summary`;
+
+  const response = await fetch(endpoint, {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    let errorDetail = 'Gagal memuat data ringkasan dashboard.';
+    try {
+      const errJson = await response.json();
+      if (errJson.detail) {
+        errorDetail = errJson.detail;
+      }
+    } catch {
+      errorDetail = `Error HTTP ${response.status}: ${response.statusText}`;
+    }
+    throw new Error(errorDetail);
   }
 
   return response.json();

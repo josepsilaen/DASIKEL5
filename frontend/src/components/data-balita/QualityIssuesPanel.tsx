@@ -15,10 +15,10 @@ export const QualityIssuesPanel: React.FC<QualityIssuesPanelProps> = ({
 
   if (issues.length === 0 && identicalDuplicates === 0) {
     return (
-      <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-4 flex items-center gap-3 text-emerald-800">
+      <div className="bg-emerald-50/80 border border-emerald-200 rounded-xl p-4 flex items-center gap-3 text-emerald-800 shadow-2xs">
         <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0" />
-        <div className="text-[13px]">
-          <span className="font-semibold">Kualitas Data Sangat Baik: </span>
+        <div className="text-[13px] leading-relaxed">
+          <span className="font-bold">Kualitas Data Sangat Baik: </span>
           Tidak ditemukan nilai kosong kritis, baris duplikat identik, atau anomali rentang nilai pada dataset ini.
         </div>
       </div>
@@ -34,18 +34,18 @@ export const QualityIssuesPanel: React.FC<QualityIssuesPanelProps> = ({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-slate-50/80 transition-colors"
+        className="w-full px-5 py-3.5 flex items-center justify-between text-left hover:bg-slate-50/80 transition-colors"
       >
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600">
+          <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600 border border-amber-100 flex-shrink-0">
             <ShieldAlert className="w-4 h-4" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-[15px] font-semibold text-slate-800">
+              <h3 className="text-[15px] font-bold text-slate-800">
                 Temuan Validasi & Kualitas Data
               </h3>
-              <span className="text-[11px] font-medium bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
+              <span className="text-[11.5px] font-semibold bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full border border-slate-200">
                 {issues.length} catatan
               </span>
             </div>
@@ -72,9 +72,9 @@ export const QualityIssuesPanel: React.FC<QualityIssuesPanelProps> = ({
             </span>
           )}
           {isOpen ? (
-            <ChevronUp className="w-5 h-5 text-slate-400" />
+            <ChevronUp className="w-4.5 h-4.5 text-slate-400" />
           ) : (
-            <ChevronDown className="w-5 h-5 text-slate-400" />
+            <ChevronDown className="w-4.5 h-4.5 text-slate-400" />
           )}
         </div>
       </button>
@@ -82,13 +82,13 @@ export const QualityIssuesPanel: React.FC<QualityIssuesPanelProps> = ({
       {isOpen && (
         <div className="px-5 pb-5 pt-1 border-t border-slate-100 space-y-3">
           {/* Edukasi / Catatan Pengingat */}
-          <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-[12px] text-slate-600 flex items-start gap-2">
+          <div className="p-3.5 rounded-lg bg-slate-50 border border-slate-200 text-[12.5px] sm:text-[13px] text-slate-600 flex items-start gap-2.5 leading-relaxed">
             <Info className="w-4 h-4 text-slate-400 flex-shrink-0 mt-0.5" />
             <div>
-              <span className="font-semibold text-slate-700">Prinsip Validasi Sistem: </span>
+              <span className="font-bold text-slate-800">Prinsip Validasi Sistem: </span>
               Sistem tidak akan menghapus baris, mengubah satuan, atau mengisi nilai kosong secara sepihak tanpa instruksi pengguna.
-              Perhatikan perbedaan antara <span className="font-medium text-slate-700">duplikasi baris identik</span> (seluruh kolom sama) dan{' '}
-              <span className="font-medium text-slate-700">pencatatan berulang balita</span> (anak yang sama diukur pada bulan berbeda).
+              Perhatikan perbedaan antara <span className="font-semibold text-slate-800">duplikasi baris identik</span> (seluruh kolom sama) dan{' '}
+              <span className="font-semibold text-slate-800">pencatatan berulang balita</span> (anak yang sama diukur pada bulan berbeda).
             </div>
           </div>
 
@@ -100,7 +100,7 @@ export const QualityIssuesPanel: React.FC<QualityIssuesPanelProps> = ({
               const Icon = isError ? AlertCircle : isWarning ? AlertTriangle : Info;
 
               return (
-                <div key={idx} className="py-3 flex items-start gap-3">
+                <div key={idx} className="py-2.5 flex items-start gap-3">
                   <Icon
                     className={`w-4 h-4 flex-shrink-0 mt-0.5 ${
                       isError
@@ -116,19 +116,19 @@ export const QualityIssuesPanel: React.FC<QualityIssuesPanelProps> = ({
                         {issue.message}
                       </p>
                       {issue.column && (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-slate-100 text-slate-600">
+                        <span className="px-1.5 py-0.5 rounded text-[10.5px] font-mono bg-slate-100 text-slate-700 border border-slate-200">
                           {issue.column}
                         </span>
                       )}
                     </div>
                     {issue.details && (
-                      <p className="text-[12px] text-slate-500 mt-0.5">
+                      <p className="text-[12px] text-slate-500 mt-0.5 leading-relaxed">
                         {issue.details}
                       </p>
                     )}
                   </div>
                   {issue.affected_rows_count > 0 && (
-                    <span className="text-[11px] font-medium text-slate-400 whitespace-nowrap tabular-nums">
+                    <span className="text-[11.5px] font-semibold text-slate-400 whitespace-nowrap tabular-nums">
                       {issue.affected_rows_count} baris
                     </span>
                   )}

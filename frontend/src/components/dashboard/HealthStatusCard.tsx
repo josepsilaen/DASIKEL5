@@ -16,13 +16,13 @@ export const HealthStatusCard: React.FC<HealthStatusCardProps> = ({
   const isConnected = healthResult.status === 'connected';
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5">
+    <div className="bg-white rounded-xl border border-slate-200 p-5 sm:p-6 shadow-2xs">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <div>
-          <h3 className="text-[15px] font-semibold text-slate-800">
+          <h3 className="text-[16px] font-bold text-slate-800 tracking-tight">
             Status Koneksi Backend
           </h3>
-          <p className="text-[12px] text-slate-400 mt-0.5">
+          <p className="text-[12px] text-slate-500 mt-0.5">
             Endpoint: GET /api/health
           </p>
         </div>
@@ -30,7 +30,7 @@ export const HealthStatusCard: React.FC<HealthStatusCardProps> = ({
           type="button"
           onClick={onRefresh}
           disabled={isLoading}
-          className="inline-flex items-center gap-2 px-3.5 py-2 text-[13px] font-medium text-white bg-teal-600 hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+          className="inline-flex items-center gap-2 px-3.5 py-2 text-[13px] font-semibold text-white bg-teal-600 hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors shadow-2xs self-start sm:self-auto"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
           {isLoading ? 'Memeriksa…' : 'Uji Koneksi'}
@@ -41,8 +41,8 @@ export const HealthStatusCard: React.FC<HealthStatusCardProps> = ({
       <div
         className={`p-4 rounded-lg border flex items-start gap-3 ${
           isConnected
-            ? 'bg-emerald-50/60 border-emerald-200'
-            : 'bg-rose-50/60 border-rose-200'
+            ? 'bg-emerald-50/70 border-emerald-200'
+            : 'bg-rose-50/70 border-rose-200'
         }`}
       >
         {isConnected ? (
@@ -52,14 +52,14 @@ export const HealthStatusCard: React.FC<HealthStatusCardProps> = ({
         )}
         <div className="min-w-0">
           <p
-            className={`text-[14px] font-semibold ${
+            className={`text-[14px] font-bold ${
               isConnected ? 'text-emerald-800' : 'text-rose-800'
             }`}
           >
             {isConnected ? 'Backend Terhubung' : 'Backend Tidak Terhubung'}
           </p>
           <p
-            className={`text-[12px] mt-0.5 ${
+            className={`text-[12.5px] mt-0.5 ${
               isConnected ? 'text-emerald-700' : 'text-rose-700'
             }`}
           >
@@ -72,12 +72,12 @@ export const HealthStatusCard: React.FC<HealthStatusCardProps> = ({
 
       {/* Troubleshooting when disconnected */}
       {!isConnected && (
-        <div className="mt-3 p-3 rounded-lg bg-slate-50 border border-slate-200 text-[12px] text-slate-600">
-          <div className="flex items-center gap-1.5 font-semibold text-slate-700 mb-1.5">
+        <div className="mt-3.5 p-3.5 rounded-lg bg-slate-50 border border-slate-200 text-[12px] text-slate-600">
+          <div className="flex items-center gap-1.5 font-bold text-slate-800 mb-1.5 text-[13px]">
             <Radio className="w-3.5 h-3.5 text-amber-600" />
             Langkah menjalankan backend:
           </div>
-          <ol className="list-decimal list-inside space-y-0.5 text-slate-500 font-mono text-[11px]">
+          <ol className="list-decimal list-inside space-y-0.5 text-slate-600 font-mono text-[11.5px]">
             <li>cd backend</li>
             <li>.\venv\Scripts\Activate.ps1</li>
             <li>uvicorn app.main:app --reload --port 8000</li>

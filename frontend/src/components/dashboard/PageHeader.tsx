@@ -7,11 +7,11 @@ interface PageHeaderProps {
 
 export const PageHeader: React.FC<PageHeaderProps> = ({ title, description }) => {
   return (
-    <div className="mb-6">
-      <h1 className="text-[26px] font-bold text-slate-800 leading-tight">
+    <div>
+      <h1 className="text-[24px] sm:text-[27px] font-bold text-slate-900 leading-tight tracking-tight">
         {title}
       </h1>
-      <p className="text-[14px] text-slate-500 mt-1 leading-relaxed max-w-2xl">
+      <p className="text-[13.5px] sm:text-[14px] text-slate-500 mt-1 leading-relaxed max-w-3xl">
         {description}
       </p>
     </div>

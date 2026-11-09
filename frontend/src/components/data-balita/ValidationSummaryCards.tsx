@@ -51,63 +51,63 @@ export const ValidationSummaryCards: React.FC<ValidationSummaryCardsProps> = ({ 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
       {/* Kartu 1: Total Baris Data */}
-      <div className="bg-white rounded-xl border border-slate-200 p-5 hover:border-slate-300 transition-colors shadow-2xs">
+      <div className="bg-white rounded-xl border border-slate-200 p-5 hover:border-slate-300 transition-all shadow-2xs">
         <div className="flex items-center justify-between mb-2">
-          <p className="text-[13px] font-medium text-slate-500">Total Baris Data</p>
-          <div className="w-8 h-8 rounded-lg bg-teal-50 flex items-center justify-center text-teal-600">
+          <p className="text-[13px] font-semibold text-slate-500">Total Baris Data</p>
+          <div className="w-8 h-8 rounded-lg bg-teal-50 flex items-center justify-center text-teal-600 border border-teal-100">
             <Database className="w-4 h-4" />
           </div>
         </div>
         <div className="flex items-baseline gap-2">
-          <span className="text-[28px] font-bold text-slate-800 tabular-nums">
+          <span className="text-[26px] sm:text-[28px] font-bold text-slate-900 tabular-nums tracking-tight">
             {data.total_rows.toLocaleString('id-ID')}
           </span>
           <span className="text-[13px] text-slate-400 font-medium">baris balita</span>
         </div>
-        <p className="text-[11px] text-slate-400 mt-2">
-          Berkas: <span className="font-medium text-slate-600 truncate">{data.filename}</span> ({fileSizeFormatted})
+        <p className="text-[12px] text-slate-500 mt-2 truncate">
+          Berkas: <span className="font-semibold text-slate-700">{data.filename}</span> ({fileSizeFormatted})
         </p>
       </div>
 
       {/* Kartu 2: Kolom Terdeteksi */}
-      <div className="bg-white rounded-xl border border-slate-200 p-5 hover:border-slate-300 transition-colors shadow-2xs">
+      <div className="bg-white rounded-xl border border-slate-200 p-5 hover:border-slate-300 transition-all shadow-2xs">
         <div className="flex items-center justify-between mb-2">
-          <p className="text-[13px] font-medium text-slate-500">Struktur Kolom</p>
-          <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
+          <p className="text-[13px] font-semibold text-slate-500">Struktur Kolom</p>
+          <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 border border-blue-100">
             <Columns className="w-4 h-4" />
           </div>
         </div>
         <div className="flex items-baseline gap-2">
-          <span className="text-[28px] font-bold text-slate-800 tabular-nums">
+          <span className="text-[26px] sm:text-[28px] font-bold text-slate-900 tabular-nums tracking-tight">
             {data.total_columns}
           </span>
           <span className="text-[13px] text-slate-400 font-medium">kolom tabel</span>
         </div>
         <div className="flex items-center gap-1.5 mt-2">
-          <ShieldCheck className="w-3.5 h-3.5 text-teal-600" />
-          <span className="text-[11px] text-slate-500">
+          <ShieldCheck className="w-3.5 h-3.5 text-teal-600 flex-shrink-0" />
+          <span className="text-[11.5px] sm:text-[12px] text-slate-500 truncate">
             {piiColumnsCount > 0
-              ? `${piiColumnsCount} kolom identitas pribadi disamarkan`
-              : 'Tidak terdeteksi identitas pribadi sensitif'}
+              ? `${piiColumnsCount} kolom identitas disamarkan`
+              : 'Tidak terdeteksi identitas sensitif'}
           </span>
         </div>
       </div>
 
       {/* Kartu 3: Catatan Kualitas Data */}
-      <div className="bg-white rounded-xl border border-slate-200 p-5 hover:border-slate-300 transition-colors shadow-2xs">
+      <div className="bg-white rounded-xl border border-slate-200 p-5 hover:border-slate-300 transition-all shadow-2xs">
         <div className="flex items-center justify-between mb-2">
-          <p className="text-[13px] font-medium text-slate-500">Integritas Data</p>
-          <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600">
+          <p className="text-[13px] font-semibold text-slate-500">Integritas Data</p>
+          <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600 border border-amber-100">
             <AlertTriangle className="w-4 h-4" />
           </div>
         </div>
         <div className="flex items-baseline gap-2">
-          <span className="text-[28px] font-bold text-slate-800 tabular-nums">
+          <span className="text-[26px] sm:text-[28px] font-bold text-slate-900 tabular-nums tracking-tight">
             {data.identical_duplicates_count}
           </span>
           <span className="text-[13px] text-slate-400 font-medium">duplikat identik</span>
         </div>
-        <p className="text-[11px] text-slate-400 mt-2">
+        <p className="text-[12px] text-slate-500 mt-2">
           {missingValuesCount > 0
             ? `${missingValuesCount} kolom memuat nilai kosong`
             : 'Seluruh sel terisi lengkap'}
@@ -115,15 +115,15 @@ export const ValidationSummaryCards: React.FC<ValidationSummaryCardsProps> = ({ 
       </div>
 
       {/* Kartu 4: Status Kesiapan Analisis */}
-      <div className={`rounded-xl border p-5 ${statusConfig.bg} ${statusConfig.border} transition-colors shadow-2xs`}>
+      <div className={`rounded-xl border p-5 ${statusConfig.bg} ${statusConfig.border} transition-all shadow-2xs`}>
         <div className="flex items-center justify-between mb-2">
-          <p className="text-[13px] font-medium text-slate-600">Kesiapan Analisis</p>
-          <StatusIcon className={`w-5 h-5 ${statusConfig.text}`} />
+          <p className="text-[13px] font-semibold text-slate-600">Kesiapan Analisis</p>
+          <StatusIcon className={`w-4.5 h-4.5 ${statusConfig.text}`} />
         </div>
-        <p className={`text-[17px] font-bold ${statusConfig.text} leading-tight`}>
+        <p className={`text-[16px] sm:text-[17px] font-bold ${statusConfig.text} leading-tight`}>
           {statusConfig.badgeText}
         </p>
-        <p className="text-[11px] text-slate-600 mt-2 leading-relaxed line-clamp-2" title={data.readiness_message}>
+        <p className="text-[12px] text-slate-600 mt-2 leading-relaxed line-clamp-2" title={data.readiness_message}>
           {data.readiness_message}
         </p>
       </div>

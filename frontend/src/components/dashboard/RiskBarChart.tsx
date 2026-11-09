@@ -9,15 +9,21 @@ import {
   ResponsiveContainer,
   Cell,
 } from 'recharts';
-import type { RiskFactorItem } from '../../data/dashboard';
+export interface RiskFactorChartItem {
+  faktor: string;
+  jumlah: number;
+  warna?: string | null;
+}
 
 interface RiskBarChartProps {
-  data: RiskFactorItem[];
+  data: RiskFactorChartItem[];
 }
+
+const DEFAULT_BAR_COLOR = '#0d9488';
 
 export const RiskBarChart: React.FC<RiskBarChartProps> = ({ data }) => {
   return (
-    <ResponsiveContainer width="100%" height={280}>
+    <ResponsiveContainer width="100%" height={290}>
       <BarChart
         data={data}
         layout="vertical"
@@ -26,27 +32,28 @@ export const RiskBarChart: React.FC<RiskBarChartProps> = ({ data }) => {
         <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
         <XAxis
           type="number"
-          tick={{ fontSize: 12, fill: '#94a3b8' }}
+          tick={{ fontSize: 12, fill: '#64748b' }}
           tickLine={false}
-          axisLine={{ stroke: '#e2e8f0' }}
+          axisLine={{ stroke: '#cbd5e1' }}
         />
         <YAxis
           type="category"
           dataKey="faktor"
-          tick={{ fontSize: 12, fill: '#64748b' }}
+          tick={{ fontSize: 12, fill: '#334155', fontWeight: 500 }}
           tickLine={false}
           axisLine={false}
-          width={160}
+          width={168}
         />
         <Tooltip
           contentStyle={{
             fontSize: 12,
             borderRadius: 8,
-            border: '1px solid #e2e8f0',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+            border: '1px solid #cbd5e1',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+            padding: '6px 10px',
           }}
           formatter={(value) => [`${value ?? 0} kasus`, 'Jumlah']}
-          labelStyle={{ fontWeight: 600, color: '#334155' }}
+          labelStyle={{ fontWeight: 600, color: '#1e293b' }}
         />
         <Bar
           dataKey="jumlah"
@@ -55,7 +62,7 @@ export const RiskBarChart: React.FC<RiskBarChartProps> = ({ data }) => {
           barSize={20}
         >
           {data.map((entry, index) => (
-            <Cell key={`cell-${index}`} fill={entry.warna} />
+            <Cell key={`cell-${index}`} fill={entry.warna || DEFAULT_BAR_COLOR} />
           ))}
         </Bar>
       </BarChart>

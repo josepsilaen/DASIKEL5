@@ -11,12 +11,22 @@ export interface ColumnSummary {
   null_percentage: number;
   sample_values: string[];
   is_pii: boolean;
+  pii_status?: 'confirmed' | 'suspicious' | 'safe';
+  pii_reason?: string | null;
   suggested_mapping: string | null;
   mapping_confidence: number;
 }
 
 export interface QualityIssue {
-  issue_type: 'missing_values' | 'duplicates' | 'invalid_range' | 'type_mismatch' | 'unmapped';
+  issue_type:
+    | 'missing_values'
+    | 'duplicates'
+    | 'invalid_range'
+    | 'type_mismatch'
+    | 'unmapped'
+    | 'suspicious_pii'
+    | 'unsupported_structure'
+    | string;
   severity: 'error' | 'warning' | 'info';
   column?: string | null;
   message: string;
