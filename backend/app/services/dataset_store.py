@@ -5,8 +5,10 @@ Mendukung kalkulasi komprehensif: TB/U, BB/U, BB/TB, kelompok usia, jenis kelami
 distribusi wilayah, dan statistik Z-score.
 """
 import re
+import math
 import statistics
-from typing import List, Dict, Any, Optional
+from datetime import datetime
+from typing import List, Dict, Any, Optional, Tuple
 from app.schemas.data_management import DatasetPreviewResponse
 from app.schemas.visualization import (
     DistributionItem,
@@ -22,6 +24,21 @@ from app.schemas.dashboard import (
     DashboardMonthlyTrendItem,
     DashboardRiskFactorItem,
     DashboardRegionSummaryItem,
+    DashboardTableauAnalytics,
+    DashboardSection1BirthWeight,
+    DashboardSection2AgeCohort,
+    DashboardSection3RegionalSpread,
+    DashboardSection4PosyanduParenting,
+    DashboardSection5MaternalFactors,
+    BoxPlotStats,
+    CategoryPrevalenceItem,
+    ScatterPoint,
+    AgeCohortItem,
+    DesaSpreadItem,
+    KecamatanSpreadItem,
+    HeatmapCell,
+    AnnotatedTimeSeriesPoint,
+    DashboardTimeSeriesTrend,
 )
 
 # Penyimpanan dalam memori untuk dataset aktif
@@ -53,6 +70,7 @@ def set_active_dataset(
         "rows": rows,
         "preview_response": preview_response,
         "column_mapping": mapping,
+        "updated_at": datetime.now().strftime("%d %b %Y, %H:%M WIB"),
     }
 
 
@@ -66,6 +84,7 @@ def update_active_mapping(mapping: Dict[str, str]) -> None:
     global _ACTIVE_DATASET
     if _ACTIVE_DATASET:
         _ACTIVE_DATASET["column_mapping"] = mapping
+        _ACTIVE_DATASET["updated_at"] = datetime.now().strftime("%d %b %Y, %H:%M WIB")
 
 
 def clear_active_dataset() -> None:
@@ -75,11 +94,65 @@ def clear_active_dataset() -> None:
 
 
 def _find_source_col(column_mapping: Dict[str, str], standard_key: str) -> Optional[str]:
-    """Mencari nama kolom sumber yang dipetakan ke kunci standar tertentu."""
-    for src, tgt in column_mapping.items():
-        if tgt == standard_key:
-            return src
-    return None
+    """
+    Mencari nama kolom sumber yang dipetakan ke kunci standar tertentu.
+    Jika ada lebih dari satu kolom sumber yang dipetakan ke target yang sama,
+    pilih kolom yang paling sesuai secara semantik dan cegah collision:
+    - berat_badan: jangan memilih 'bblr' atau kolom riwayat kelahiran jika ada kolom berat aktual.
+    - tinggi_badan: jangan memilih kolom 'lahir' atau 'pbl' jika ada kolom tinggi aktual.
+    - berat_lahir: prioritaskan kolom kelahiran ('lahir', 'bbl').
+    - panjang_lahir: prioritaskan kolom kelahiran ('lahir', 'pbl').
+    """
+    candidates = [src for src, tgt in column_mapping.items() if tgt == standard_key]
+    if not candidates:
+        return None
+
+    if len(candidates) == 1:
+        c = candidates[0]
+        # Pengecekan keamanan: jika pemetaan memetakan bblr ke berat_badan secara keliru,
+        # tolak karena bblr adalah flag biner 0/1.
+        if standard_key == "berat_badan" and c.strip().lower() == "bblr":
+            return None
+        return c
+
+    # Jika terdapat beberapa kandidat pemetaan untuk target yang sama:
+    if standard_key == "berat_badan":
+        preferred = [c for c in candidates if "bblr" not in c.lower() and "lahir" not in c.lower()]
+        if preferred:
+            for p in preferred:
+                if any(k in p.lower() for k in ["berat_kg", "berat", "bb_kg", "bobot"]):
+                    return p
+            return preferred[0]
+        return None
+
+    if standard_key == "tinggi_badan":
+        preferred = [c for c in candidates if "lahir" not in c.lower() and "pbl" not in c.lower()]
+        if preferred:
+            for p in preferred:
+                if any(k in p.lower() for k in ["tinggi_cm", "tinggi", "tb_cm", "panjang"]):
+                    return p
+            return preferred[0]
+        return None
+
+    if standard_key == "berat_lahir":
+        preferred = [c for c in candidates if "lahir" in c.lower() or "bbl" in c.lower()]
+        if preferred:
+            return preferred[0]
+
+    if standard_key == "panjang_lahir":
+        preferred = [c for c in candidates if "lahir" in c.lower() or "pbl" in c.lower()]
+        if preferred:
+            return preferred[0]
+
+    if standard_key == "usia_saat_ukur":
+        preferred = [c for c in candidates if not any(k in c.lower() for k in ["kelompok", "kategori", "grup", "group", "range", "rentang", "kohor"])]
+        if preferred:
+            for p in preferred:
+                if any(k in p.lower() for k in ["usia_bulan", "umur_bulan", "usia_saat_ukur", "umur_saat_ukur", "usia", "umur"]):
+                    return p
+            return preferred[0]
+
+    return candidates[0]
 
 
 def _parse_numeric(val: Any) -> Optional[float]:
@@ -242,6 +315,14 @@ def compute_visualization(filter_req: Optional[VisualizationFilterRequest] = Non
     col_zs_bbu = _find_source_col(mapping, "zscore_bb_u")
     col_zs_bbtb = _find_source_col(mapping, "zscore_bb_tb")
 
+    # Kolom pendukung analisis lanjutan (BBLR, PBL, KMS, Ibu, LiLA)
+    col_bbl = _find_source_col(mapping, "berat_lahir")
+    col_pbl = _find_source_col(mapping, "panjang_lahir")
+    col_naik_bb = _find_source_col(mapping, "status_naik_berat_badan")
+    col_kelas_ibu = _find_source_col(mapping, "kelas_ibu_balita")
+    col_lila = _find_source_col(mapping, "lila_ibu")
+    col_status_lila = _find_source_col(mapping, "status_lila")
+
     # Kumpulkan opsi filter yang tersedia dari seluruh baris (unfiltered)
     all_kec = sorted({str(r.get(col_kec)).strip() for r in rows if col_kec and r.get(col_kec) and str(r.get(col_kec)).strip() not in ["-", "null", "none"]})
     all_pkm = sorted({str(r.get(col_pkm)).strip() for r in rows if col_pkm and r.get(col_pkm) and str(r.get(col_pkm)).strip() not in ["-", "null", "none"]})
@@ -306,6 +387,15 @@ def compute_visualization(filter_req: Optional[VisualizationFilterRequest] = Non
             parsed_a = _parse_numeric(r.get(col_age))
             if parsed_a is None or not _matches_age_group(parsed_a, req.age_group):
                 continue
+        if req.status_stunting:
+            is_stunt = _is_stunting_row(r, col_tbu, col_zs_tbu)
+            target_st = req.status_stunting.strip().lower()
+            if target_st in ["stunting", "pendek", "sangat pendek"]:
+                if is_stunt is not True:
+                    continue
+            elif target_st in ["tidak stunting", "normal", "non-stunting", "tidak_stunting"]:
+                if is_stunt is not False:
+                    continue
         if req.periode and col_date:
             if str(r.get(col_date, "")).strip().lower() != req.periode.strip().lower():
                 continue
@@ -667,6 +757,19 @@ def compute_visualization(filter_req: Optional[VisualizationFilterRequest] = Non
             f"Terdapat {out_of_scope_age_count} data anak dengan usia ≥ 60 bulan yang berada di luar cakupan balita penelitian (0–59 bulan)."
         )
 
+    tableau_analytics = _compute_dashboard_tableau_analytics(
+        all_rows=rows,
+        mapping=mapping,
+        col_tbu=col_tbu,
+        col_zs_tbu=col_zs_tbu,
+        col_age=col_age,
+        col_kec=col_kec,
+        col_pkm=col_pkm,
+        col_desa=col_desa,
+        desa_filter=req.desa_kelurahan,
+        section_rows=filtered_rows,
+    )
+
     return VisualizationResponse(
         has_active_dataset=True,
         filename=filename,
@@ -698,13 +801,741 @@ def compute_visualization(filter_req: Optional[VisualizationFilterRequest] = Non
         filter_options=filter_options,
         active_filters=active_filters_dict,
         warnings=warnings,
+        tableau_analytics=tableau_analytics,
     )
 
 
-def compute_dashboard_summary() -> DashboardSummaryResponse:
+def _percentile(sorted_vals: List[float], p: float) -> float:
+    """Menghitung persentil secara linear interpolation pada array yang telah terurut."""
+    if not sorted_vals:
+        return 0.0
+    if p <= 0:
+        return sorted_vals[0]
+    if p >= 100:
+        return sorted_vals[-1]
+    k = (len(sorted_vals) - 1) * (p / 100.0)
+    f = math.floor(k)
+    c = math.ceil(k)
+    if f == c:
+        return sorted_vals[int(k)]
+    d0 = sorted_vals[int(f)] * (c - k)
+    d1 = sorted_vals[int(c)] * (k - f)
+    return d0 + d1
+
+
+def _compute_boxplot(values: List[float]) -> Optional[BoxPlotStats]:
+    """Menghitung statistik lima angka (min, Q1, median, Q3, max) dan mean untuk box plot."""
+    if not values:
+        return None
+    sorted_v = sorted(values)
+    n = len(sorted_v)
+    min_val = round(sorted_v[0], 2)
+    max_val = round(sorted_v[-1], 2)
+    mean_val = round(sum(sorted_v) / n, 2)
+    median_val = round(_percentile(sorted_v, 50.0), 2)
+    q1_val = round(_percentile(sorted_v, 25.0), 2)
+    q3_val = round(_percentile(sorted_v, 75.0), 2)
+
+    return BoxPlotStats(
+        min_value=min_val,
+        q1=q1_val,
+        median=median_val,
+        q3=q3_val,
+        max_value=max_val,
+        mean=mean_val,
+        count=n,
+    )
+
+
+def _compute_pearson_r(xs: List[float], ys: List[float]) -> Optional[float]:
+    """Menghitung koefisien korelasi Pearson r antara dua vektor variabel numerik."""
+    if len(xs) != len(ys) or len(xs) < 3:
+        return None
+    n = len(xs)
+    mean_x = sum(xs) / n
+    mean_y = sum(ys) / n
+
+    numerator = sum((x - mean_x) * (y - mean_y) for x, y in zip(xs, ys))
+    var_x = sum((x - mean_x) ** 2 for x in xs)
+    var_y = sum((y - mean_y) ** 2 for y in ys)
+    denom = math.sqrt(var_x * var_y)
+
+    if denom == 0:
+        return 0.0
+
+    r = numerator / denom
+    r = max(-1.0, min(1.0, r))
+    return round(r, 3)
+
+
+def _is_stunting_row(row: Dict[str, Any], col_tbu: Optional[str], col_zs_tbu: Optional[str]) -> Optional[bool]:
+    """Menentukan status diagnosis stunting balita berdasarkan kolom TB/U atau Z-Score TB/U."""
+    if col_tbu:
+        v = str(row.get(col_tbu, "")).strip().lower()
+        if "pendek" in v:
+            return True
+        elif "normal" in v or "tinggi" in v:
+            return False
+    if col_zs_tbu:
+        zs = _parse_numeric(row.get(col_zs_tbu))
+        if zs is not None:
+            return zs < -2.0
+    return None
+
+
+def _compute_dashboard_tableau_analytics(
+    all_rows: List[Dict[str, Any]],
+    mapping: Dict[str, str],
+    col_tbu: Optional[str],
+    col_zs_tbu: Optional[str],
+    col_age: Optional[str],
+    col_kec: Optional[str],
+    col_pkm: Optional[str],
+    col_desa: Optional[str],
+    desa_filter: Optional[str] = None,
+    section_rows: Optional[List[Dict[str, Any]]] = None,
+) -> DashboardTableauAnalytics:
+    """
+    Menghitung lima kelompok visualisasi Dashboard sesuai acuan analisis Tableau:
+    Bagian 1: Pengaruh Berat Lahir terhadap Risiko Stunting
+    Bagian 2: Jumlah Stunting Berdasarkan Kelompok Usia
+    Bagian 3: Sebaran Stunting Berdasarkan Wilayah
+    Bagian 4: Pengaruh Kehadiran Posyandu dan Pola Asuh Ibu
+    Bagian 5: Hubungan Faktor Ibu dan Kondisi Kelahiran
+    """
+    col_bbl = _find_source_col(mapping, "berat_lahir")
+    col_pbl = _find_source_col(mapping, "panjang_lahir")
+    col_naik_bb = _find_source_col(mapping, "status_naik_berat_badan")
+    col_kelas_ibu = _find_source_col(mapping, "kelas_ibu_balita")
+    col_lila = _find_source_col(mapping, "lila_ibu")
+    col_status_lila = _find_source_col(mapping, "status_lila")
+
+    # Filter data balita untuk Bagian 1, 2, 4, 5 jika terdapat filter desa aktif atau section_rows ditentukan
+    if section_rows is None:
+        norm_desa_filter = desa_filter.strip().lower() if desa_filter and desa_filter.strip() else None
+        if norm_desa_filter and col_desa:
+            section_rows = [
+                r for r in all_rows
+                if str(r.get(col_desa, "")).strip().lower() == norm_desa_filter
+            ]
+        else:
+            section_rows = all_rows
+
+    # -------------------------------------------------------------------------
+    # BAGIAN 1: Pengaruh Berat Lahir terhadap Risiko Stunting
+    # -------------------------------------------------------------------------
+    sec1 = DashboardSection1BirthWeight()
+    if not col_bbl:
+        sec1.has_column = False
+        sec1.unmapped_reason = (
+            "Kolom Berat Lahir (BBL) belum dipetakan. "
+            "Petakan kolom Berat Lahir pada menu Data Balita untuk menampilkan analisis Bagian 1."
+        )
+    else:
+        sec1.has_column = True
+        valid_bbl_pairs: List[Tuple[float, Optional[float], Optional[bool], str]] = []
+        bblr_rows = []
+        normal_bbl_rows = []
+
+        for r in section_rows:
+            bbl_val = _parse_numeric(r.get(col_bbl))
+            if bbl_val is not None and 0.5 <= bbl_val <= 8.0:
+                is_stunt = _is_stunting_row(r, col_tbu, col_zs_tbu)
+                zs_val = _parse_numeric(r.get(col_zs_tbu)) if col_zs_tbu else None
+                lbl = str(r.get(col_desa or col_pkm or col_kec, "Balita"))
+                valid_bbl_pairs.append((bbl_val, zs_val, is_stunt, lbl))
+
+                if bbl_val < 2.5:
+                    bblr_rows.append((bbl_val, is_stunt))
+                else:
+                    normal_bbl_rows.append((bbl_val, is_stunt))
+
+        sec1.total_valid = len(valid_bbl_pairs)
+        if sec1.total_valid > 0:
+            all_bbl_vals = [p[0] for p in valid_bbl_pairs]
+            sec1.mean_birth_weight = round(sum(all_bbl_vals) / len(all_bbl_vals), 2)
+
+            sec1.bblr_count = len(bblr_rows)
+            sec1.bblr_rate_overall = round((sec1.bblr_count / sec1.total_valid) * 100.0, 1)
+
+            sec1.bblr_stunting_count = sum(1 for _, is_stunt in bblr_rows if is_stunt is True)
+            sec1.bblr_stunting_rate = (
+                round((sec1.bblr_stunting_count / sec1.bblr_count) * 100.0, 1)
+                if sec1.bblr_count > 0 else 0.0
+            )
+
+            sec1.normal_count = len(normal_bbl_rows)
+            normal_stunt_cnt = sum(1 for _, is_stunt in normal_bbl_rows if is_stunt is True)
+            sec1.normal_stunting_rate = (
+                round((normal_stunt_cnt / sec1.normal_count) * 100.0, 1)
+                if sec1.normal_count > 0 else 0.0
+            )
+
+            # Kategori Bar Chart
+            sec1.categories = [
+                CategoryPrevalenceItem(
+                    category="BBLR (< 2,5 kg)",
+                    total_count=sec1.bblr_count,
+                    stunting_count=sec1.bblr_stunting_count,
+                    normal_count=sec1.bblr_count - sec1.bblr_stunting_count,
+                    stunting_rate=sec1.bblr_stunting_rate,
+                    percentage_of_total=sec1.bblr_rate_overall,
+                ),
+                CategoryPrevalenceItem(
+                    category="Normal (≥ 2,5 kg)",
+                    total_count=sec1.normal_count,
+                    stunting_count=normal_stunt_cnt,
+                    normal_count=sec1.normal_count - normal_stunt_cnt,
+                    stunting_rate=sec1.normal_stunting_rate,
+                    percentage_of_total=round((sec1.normal_count / sec1.total_valid) * 100.0, 1),
+                ),
+            ]
+
+            # Boxplot: Stunting vs Normal
+            stunt_bbls = [p[0] for p in valid_bbl_pairs if p[2] is True]
+            norm_bbls = [p[0] for p in valid_bbl_pairs if p[2] is False]
+            sec1.boxplot_stunting = _compute_boxplot(stunt_bbls)
+            sec1.boxplot_normal = _compute_boxplot(norm_bbls)
+
+            # Scatter Sample (X: berat lahir kg, Y: Z-score TB/U)
+            scatter_candidates = [
+                ScatterPoint(x=round(p[0], 2), y=round(p[1], 2), is_stunting=(p[2] is True), label=p[3])
+                for p in valid_bbl_pairs
+                if p[1] is not None and -8.0 <= p[1] <= 8.0
+            ]
+            if len(scatter_candidates) > 350:
+                step = len(scatter_candidates) / 350
+                sec1.scatter_sample = [scatter_candidates[int(i * step)] for i in range(350)]
+            else:
+                sec1.scatter_sample = scatter_candidates
+
+    # -------------------------------------------------------------------------
+    # BAGIAN 2: Jumlah Stunting Berdasarkan Kelompok Usia
+    # -------------------------------------------------------------------------
+    sec2 = DashboardSection2AgeCohort()
+    if not col_age:
+        sec2.has_column = False
+        sec2.unmapped_reason = (
+            "Kolom Usia Saat Ukur belum dipetakan dalam dataset aktif."
+        )
+    else:
+        sec2.has_column = True
+        cohort_defs = [
+            ("0–5 bln", 0, 5),
+            ("6–11 bln", 6, 11),
+            ("12–23 bln", 12, 23),
+            ("24–35 bln", 24, 35),
+            ("36–47 bln", 36, 47),
+            ("48–59 bln", 48, 59),
+        ]
+
+        cohort_items: List[AgeCohortItem] = []
+        highest_rate = -1.0
+        highest_name = None
+        lowest_zscore = 999.0
+        lowest_zname = None
+
+        for label, min_a, max_a in cohort_defs:
+            cohort_rows = [
+                r for r in section_rows
+                if _parse_numeric(r.get(col_age)) is not None
+                and min_a <= _parse_numeric(r.get(col_age)) <= max_a  # type: ignore
+            ]
+            tot_cnt = len(cohort_rows)
+            stunt_cnt = sum(1 for r in cohort_rows if _is_stunting_row(r, col_tbu, col_zs_tbu) is True)
+            rate = round((stunt_cnt / tot_cnt) * 100.0, 1) if tot_cnt > 0 else 0.0
+
+            # Z-scores
+            zs_cohort: List[float] = []
+            if col_zs_tbu:
+                for r in cohort_rows:
+                    zv = _parse_numeric(r.get(col_zs_tbu))
+                    if zv is not None and -8.0 <= zv <= 8.0:
+                        zs_cohort.append(zv)
+
+            mean_zs = round(sum(zs_cohort) / len(zs_cohort), 2) if zs_cohort else None
+            bplot = _compute_boxplot(zs_cohort) if zs_cohort else None
+
+            if tot_cnt > 0 and rate > highest_rate:
+                highest_rate = rate
+                highest_name = label
+
+            if mean_zs is not None and mean_zs < lowest_zscore:
+                lowest_zscore = mean_zs
+                lowest_zname = label
+
+            cohort_items.append(
+                AgeCohortItem(
+                    cohort_label=label,
+                    total_count=tot_cnt,
+                    stunting_count=stunt_cnt,
+                    stunting_rate=rate,
+                    mean_zscore_tbu=mean_zs,
+                    boxplot=bplot,
+                )
+            )
+
+        sec2.cohorts = cohort_items
+        sec2.highest_stunting_cohort = highest_name
+        sec2.highest_stunting_rate = highest_rate if highest_rate >= 0 else None
+        sec2.lowest_mean_zscore_cohort = lowest_zname
+
+    # -------------------------------------------------------------------------
+    # BAGIAN 3: Sebaran Stunting Berdasarkan Wilayah (Dihitung dari Seluruh Desa)
+    # -------------------------------------------------------------------------
+    sec3 = DashboardSection3RegionalSpread()
+    target_reg_col = col_desa or col_pkm or col_kec
+    if not target_reg_col:
+        sec3.has_column = False
+        sec3.unmapped_reason = (
+            "Kolom wilayah (Desa/Kelurahan, Puskesmas, atau Kecamatan) belum dipetakan dalam dataset."
+        )
+    else:
+        sec3.has_column = True
+        desa_groups: Dict[str, Dict[str, Any]] = {}
+        for r in all_rows:
+            d_name = str(r.get(target_reg_col, "")).strip()
+            if not d_name or d_name in ["-", "null", "none", "nan"]:
+                continue
+            if d_name not in desa_groups:
+                kec_val = str(r.get(col_kec, "")).strip() if col_kec else None
+                desa_groups[d_name] = {"total": 0, "stunting": 0, "kecamatan": kec_val}
+
+            desa_groups[d_name]["total"] += 1
+            if _is_stunting_row(r, col_tbu, col_zs_tbu) is True:
+                desa_groups[d_name]["stunting"] += 1
+
+        total_desas = len(desa_groups)
+        sec3.total_desas_count = total_desas
+
+        if total_desas > 0:
+            rates_list = []
+            prelim_desas = []
+            for d_name, stat in desa_groups.items():
+                tot = stat["total"]
+                st_cnt = stat["stunting"]
+                st_rate = round((st_cnt / tot) * 100.0, 1) if tot > 0 else 0.0
+                rates_list.append(st_rate)
+                prelim_desas.append((d_name, stat["kecamatan"], tot, st_cnt, st_rate))
+
+            avg_rate = round(sum(rates_list) / len(rates_list), 1) if rates_list else 0.0
+            sec3.avg_desa_stunting_rate = avg_rate
+            sec3.desas_above_avg_count = sum(1 for item in prelim_desas if item[4] > avg_rate)
+
+            # Urutkan berdasarkan stunting_rate desc, lalu total balita desc
+            sorted_desas = sorted(prelim_desas, key=lambda x: (x[4], x[2]), reverse=True)
+
+            sec3.top_10_high_stunting_desas = [
+                DesaSpreadItem(
+                    desa_name=item[0],
+                    kecamatan=item[1],
+                    total_balita=item[2],
+                    stunting_count=item[3],
+                    stunting_rate=item[4],
+                    is_above_avg=(item[4] > avg_rate),
+                )
+                for item in sorted_desas[:10]
+            ]
+
+            sec3.all_desas = [
+                DesaSpreadItem(
+                    desa_name=item[0],
+                    kecamatan=item[1],
+                    total_balita=item[2],
+                    stunting_count=item[3],
+                    stunting_rate=item[4],
+                    is_above_avg=(item[4] > avg_rate),
+                )
+                for item in sorted_desas
+            ]
+
+        # Small multiples prevalensi stunting berdasarkan kecamatan
+        if col_kec:
+            kec_map: Dict[str, Dict[str, Any]] = {}
+            for r in all_rows:
+                k_raw = str(r.get(col_kec, "")).strip()
+                if not k_raw or k_raw in ["-", "null", "none", "nan"]:
+                    continue
+                if k_raw not in kec_map:
+                    kec_map[k_raw] = {"total": 0, "stunting": 0, "desas": set()}
+                kec_map[k_raw]["total"] += 1
+                if _is_stunting_row(r, col_tbu, col_zs_tbu) is True:
+                    kec_map[k_raw]["stunting"] += 1
+                d_val = str(r.get(target_reg_col, "")).strip() if target_reg_col else ""
+                if d_val and d_val not in ["-", "null", "none"]:
+                    kec_map[k_raw]["desas"].add(d_val)
+
+            sec3.kecamatan_spread = [
+                KecamatanSpreadItem(
+                    kecamatan_name=k_name,
+                    total_balita=stat["total"],
+                    stunting_count=stat["stunting"],
+                    stunting_rate=round((stat["stunting"] / stat["total"]) * 100.0, 1) if stat["total"] > 0 else 0.0,
+                    desa_count=len(stat["desas"]),
+                )
+                for k_name, stat in sorted(kec_map.items(), key=lambda x: x[1]["total"], reverse=True)
+            ]
+
+    # -------------------------------------------------------------------------
+    # BAGIAN 4: Pengaruh Kehadiran Posyandu dan Pola Asuh Ibu terhadap Stunting
+    # -------------------------------------------------------------------------
+    sec4 = DashboardSection4PosyanduParenting()
+
+    # Naik BB
+    if not col_naik_bb:
+        sec4.has_naik_bb = False
+        sec4.naik_bb_unmapped_reason = (
+            "Variabel Status Kenaikan Berat Badan (KMS SKDN: N/T/O/B) belum dipetakan. "
+            "Data ini spesifik untuk pemantauan penimbangan Posyandu Puskesmas (misal Silaen)."
+        )
+    else:
+        sec4.has_naik_bb = True
+        naik_counts: Dict[str, Dict[str, int]] = {
+            "N (Naik)": {"total": 0, "stunting": 0},
+            "T (Tidak Naik)": {"total": 0, "stunting": 0},
+            "O (Tidak Hadir)": {"total": 0, "stunting": 0},
+            "B (Baru Pertama)": {"total": 0, "stunting": 0},
+        }
+        total_naik_valid = 0
+
+        for r in section_rows:
+            raw_n = str(r.get(col_naik_bb, "")).strip().upper()
+            if not raw_n or raw_n in ["-", "NULL", "NONE"]:
+                continue
+            cat_key = None
+            if raw_n in ["N", "NAIK", "YA"]:
+                cat_key = "N (Naik)"
+            elif raw_n in ["T", "TIDAK NAIK", "TURUN", "TIDAK"]:
+                cat_key = "T (Tidak Naik)"
+            elif raw_n in ["O", "TIDAK HADIR", "ABSEN"]:
+                cat_key = "O (Tidak Hadir)"
+            elif raw_n in ["B", "BARU", "PERTAMA"]:
+                cat_key = "B (Baru Pertama)"
+
+            if cat_key:
+                naik_counts[cat_key]["total"] += 1
+                total_naik_valid += 1
+                if _is_stunting_row(r, col_tbu, col_zs_tbu) is True:
+                    naik_counts[cat_key]["stunting"] += 1
+
+        denom_naik = total_naik_valid if total_naik_valid > 0 else 1
+        n_cat_list: List[CategoryPrevalenceItem] = []
+        for cat_k, stat in naik_counts.items():
+            tot = stat["total"]
+            st = stat["stunting"]
+            st_rate = round((st / tot) * 100.0, 1) if tot > 0 else 0.0
+            pct_tot = round((tot / denom_naik) * 100.0, 1)
+            n_cat_list.append(
+                CategoryPrevalenceItem(
+                    category=cat_k,
+                    total_count=tot,
+                    stunting_count=st,
+                    normal_count=tot - st,
+                    stunting_rate=st_rate,
+                    percentage_of_total=pct_tot,
+                )
+            )
+        sec4.naik_bb_categories = n_cat_list
+        sec4.naik_bb_overall_rate = round((naik_counts["N (Naik)"]["total"] / denom_naik) * 100.0, 1)
+
+    # Kelas Ibu
+    if not col_kelas_ibu:
+        sec4.has_kelas_ibu = False
+        sec4.kelas_ibu_unmapped_reason = (
+            "Variabel Keikutsertaan Kelas Ibu Balita belum dipetakan pada dataset aktif."
+        )
+    else:
+        sec4.has_kelas_ibu = True
+        ibu_counts = {
+            "Mengikuti (Ya)": {"total": 0, "stunting": 0},
+            "Tidak Mengikuti (Tidak)": {"total": 0, "stunting": 0},
+        }
+        total_ibu_valid = 0
+        for r in section_rows:
+            raw_i = str(r.get(col_kelas_ibu, "")).strip().lower()
+            if not raw_i or raw_i in ["-", "null", "none"]:
+                continue
+            cat_k = None
+            if raw_i in ["ya", "y", "ikut", "mengikuti", "true", "1"]:
+                cat_k = "Mengikuti (Ya)"
+            elif raw_i in ["tidak", "t", "tdk", "tidak ikut", "false", "0"]:
+                cat_k = "Tidak Mengikuti (Tidak)"
+
+            if cat_k:
+                ibu_counts[cat_k]["total"] += 1
+                total_ibu_valid += 1
+                if _is_stunting_row(r, col_tbu, col_zs_tbu) is True:
+                    ibu_counts[cat_k]["stunting"] += 1
+
+        denom_ibu = total_ibu_valid if total_ibu_valid > 0 else 1
+        ibu_cat_list: List[CategoryPrevalenceItem] = []
+        for cat_k, stat in ibu_counts.items():
+            tot = stat["total"]
+            st = stat["stunting"]
+            st_rate = round((st / tot) * 100.0, 1) if tot > 0 else 0.0
+            pct_tot = round((tot / denom_ibu) * 100.0, 1)
+            ibu_cat_list.append(
+                CategoryPrevalenceItem(
+                    category=cat_k,
+                    total_count=tot,
+                    stunting_count=st,
+                    normal_count=tot - st,
+                    stunting_rate=st_rate,
+                    percentage_of_total=pct_tot,
+                )
+            )
+        sec4.kelas_ibu_categories = ibu_cat_list
+        sec4.kelas_ibu_participation_rate = round(
+            (ibu_counts["Mengikuti (Ya)"]["total"] / denom_ibu) * 100.0, 1
+        )
+
+    # Matriks Korelasi Numerik 4x4
+    corr_variables = [
+        ("Berat Lahir (kg)", col_bbl),
+        ("Panjang Lahir (cm)", col_pbl),
+        ("Usia Balita (bln)", col_age),
+        ("Z-Score TB/U", col_zs_tbu),
+    ]
+    sec4.correlation_variables = [item[0] for item in corr_variables]
+    corr_cells: List[HeatmapCell] = []
+
+    for v1_name, v1_col in corr_variables:
+        for v2_name, v2_col in corr_variables:
+            if v1_name == v2_name:
+                corr_cells.append(
+                    HeatmapCell(
+                        row_var=v1_name,
+                        col_var=v2_name,
+                        correlation=1.0,
+                        sample_size=len(section_rows),
+                    )
+                )
+            elif not v1_col or not v2_col:
+                corr_cells.append(
+                    HeatmapCell(
+                        row_var=v1_name,
+                        col_var=v2_name,
+                        correlation=None,
+                        sample_size=0,
+                    )
+                )
+            else:
+                pairs_x: List[float] = []
+                pairs_y: List[float] = []
+                for r in section_rows:
+                    x_val = _parse_numeric(r.get(v1_col))
+                    y_val = _parse_numeric(r.get(v2_col))
+                    if x_val is not None and y_val is not None:
+                        pairs_x.append(x_val)
+                        pairs_y.append(y_val)
+
+                r_val = _compute_pearson_r(pairs_x, pairs_y)
+                corr_cells.append(
+                    HeatmapCell(
+                        row_var=v1_name,
+                        col_var=v2_name,
+                        correlation=r_val,
+                        sample_size=len(pairs_x),
+                    )
+                )
+
+    sec4.correlation_cells = corr_cells
+
+    # -------------------------------------------------------------------------
+    # BAGIAN 5: Hubungan Faktor Ibu dan Kondisi Kelahiran terhadap Stunting
+    # -------------------------------------------------------------------------
+    sec5 = DashboardSection5MaternalFactors()
+
+    # LiLA Ibu
+    active_lila_col = col_lila or col_status_lila
+    if not active_lila_col:
+        sec5.has_lila = False
+        sec5.lila_unmapped_reason = (
+            "Variabel Lingkar Lengan Atas (LiLA) Ibu belum dipetakan dalam dataset. "
+            "Standar Kemenkes RI menetapkan LiLA < 23,5 cm sebagai indikator risiko Kurang Energi Kronis (KEK)."
+        )
+    else:
+        sec5.has_lila = True
+        lila_groups = {
+            "Berisiko KEK (< 23,5 cm)": {"total": 0, "stunting": 0},
+            "Normal (≥ 23,5 cm)": {"total": 0, "stunting": 0},
+        }
+        total_lila_valid = 0
+
+        for r in section_rows:
+            is_kek = None
+            if col_lila:
+                l_num = _parse_numeric(r.get(col_lila))
+                if l_num is not None and 10.0 <= l_num <= 50.0:
+                    is_kek = l_num < 23.5
+            elif col_status_lila:
+                s_str = str(r.get(col_status_lila, "")).lower()
+                if "kek" in s_str or "kurang" in s_str:
+                    is_kek = True
+                elif "normal" in s_str:
+                    is_kek = False
+
+            if is_kek is not None:
+                cat_k = "Berisiko KEK (< 23,5 cm)" if is_kek else "Normal (≥ 23,5 cm)"
+                lila_groups[cat_k]["total"] += 1
+                total_lila_valid += 1
+                if _is_stunting_row(r, col_tbu, col_zs_tbu) is True:
+                    lila_groups[cat_k]["stunting"] += 1
+
+        denom_lila = total_lila_valid if total_lila_valid > 0 else 1
+        lila_cat_list: List[CategoryPrevalenceItem] = []
+        for cat_k, stat in lila_groups.items():
+            tot = stat["total"]
+            st = stat["stunting"]
+            st_rate = round((st / tot) * 100.0, 1) if tot > 0 else 0.0
+            pct_tot = round((tot / denom_lila) * 100.0, 1)
+            lila_cat_list.append(
+                CategoryPrevalenceItem(
+                    category=cat_k,
+                    total_count=tot,
+                    stunting_count=st,
+                    normal_count=tot - st,
+                    stunting_rate=st_rate,
+                    percentage_of_total=pct_tot,
+                )
+            )
+        sec5.lila_categories = lila_cat_list
+        sec5.kek_risk_rate = round(
+            (lila_groups["Berisiko KEK (< 23,5 cm)"]["total"] / denom_lila) * 100.0, 1
+        )
+
+    # BBLR categories untuk Bagian 5
+    sec5.bblr_rate_overall = sec1.bblr_rate_overall
+    sec5.bblr_categories = sec1.categories
+
+    # Scatter Panjang Badan Lahir (PBL) vs Z-Score TB/U
+    if not col_pbl:
+        sec5.has_panjang_lahir = False
+        sec5.panjang_lahir_unmapped_reason = (
+            "Kolom Panjang Lahir (PBL) belum dipetakan dalam dataset."
+        )
+    else:
+        sec5.has_panjang_lahir = True
+        pbl_pairs: List[ScatterPoint] = []
+        for r in section_rows:
+            pbl_val = _parse_numeric(r.get(col_pbl))
+            if pbl_val is not None and 25.0 <= pbl_val <= 65.0:
+                zs_val = _parse_numeric(r.get(col_zs_tbu)) if col_zs_tbu else None
+                if zs_val is not None and -8.0 <= zs_val <= 8.0:
+                    is_stunt = _is_stunting_row(r, col_tbu, col_zs_tbu) is True
+                    lbl = str(r.get(col_desa or col_pkm or col_kec, "Balita"))
+                    pbl_pairs.append(
+                        ScatterPoint(
+                            x=round(pbl_val, 1),
+                            y=round(zs_val, 2),
+                            is_stunting=is_stunt,
+                            label=lbl,
+                        )
+                    )
+
+        if len(pbl_pairs) > 350:
+            step = len(pbl_pairs) / 350
+            sec5.scatter_panjang_sample = [pbl_pairs[int(i * step)] for i in range(350)]
+        else:
+            sec5.scatter_panjang_sample = pbl_pairs
+
+    # -------------------------------------------------------------------------
+    # DERET WAKTU BERANOTASI: Prevalensi Stunting Berdasarkan Periode Pengukuran
+    # -------------------------------------------------------------------------
+    time_series = DashboardTimeSeriesTrend()
+    col_date = _find_source_col(mapping, "tanggal_ukur")
+    if not col_date:
+        time_series.has_date_column = False
+        time_series.unmapped_reason = (
+            "Kolom tanggal pengukuran belum dipetakan. "
+            "Petakan kolom Tanggal Ukur pada menu Data Balita untuk menampilkan grafik deret waktu."
+        )
+    else:
+        date_groups: Dict[Tuple[int, int], Dict[str, int]] = {}
+        for r in section_rows:
+            raw_d = r.get(col_date)
+            if raw_d is not None:
+                s_d = str(raw_d).strip()
+                m_iso = re.match(r"^(\d{4})[-/](\d{1,2})", s_d)
+                if m_iso:
+                    y = int(m_iso.group(1))
+                    m = int(m_iso.group(2))
+                    if 1 <= m <= 12 and 1990 <= y <= 2100:
+                        key = (y, m)
+                        if key not in date_groups:
+                            date_groups[key] = {"total": 0, "stunting": 0}
+                        date_groups[key]["total"] += 1
+                        if _is_stunting_row(r, col_tbu, col_zs_tbu) is True:
+                            date_groups[key]["stunting"] += 1
+
+        MONTH_NAMES_ID = {
+            1: "Jan", 2: "Feb", 3: "Mar", 4: "Apr", 5: "Mei", 6: "Jun",
+            7: "Jul", 8: "Agu", 9: "Sep", 10: "Okt", 11: "Nov", 12: "Des",
+        }
+        sorted_keys = sorted(date_groups.keys())
+
+        if len(sorted_keys) < 2:
+            time_series.has_date_column = True
+            time_series.unmapped_reason = (
+                f"Deret waktu memerlukan minimal 2 periode pengukuran untuk menampilkan tren "
+                f"(saat ini dataset hanya memuat {len(sorted_keys)} periode pengukuran terdeteksi)."
+            )
+            time_series.points = [
+                AnnotatedTimeSeriesPoint(
+                    period_label=f"{MONTH_NAMES_ID.get(k[1], k[1])} {k[0]}",
+                    total_measured=date_groups[k]["total"],
+                    stunting_count=date_groups[k]["stunting"],
+                    stunting_rate=round((date_groups[k]["stunting"] / date_groups[k]["total"]) * 100.0, 1) if date_groups[k]["total"] > 0 else 0.0,
+                    annotation="Data Tunggal",
+                )
+                for k in sorted_keys
+            ]
+        else:
+            time_series.has_date_column = True
+            pts: List[AnnotatedTimeSeriesPoint] = []
+            for k in sorted_keys:
+                tot = date_groups[k]["total"]
+                st = date_groups[k]["stunting"]
+                rate = round((st / tot) * 100.0, 1) if tot > 0 else 0.0
+                lbl = f"{MONTH_NAMES_ID.get(k[1], k[1])} {k[0]}"
+                pts.append(
+                    AnnotatedTimeSeriesPoint(
+                        period_label=lbl,
+                        total_measured=tot,
+                        stunting_count=st,
+                        stunting_rate=rate,
+                    )
+                )
+
+            # Anotasi cerdas pada deret waktu
+            max_rate_pt = max(pts, key=lambda p: p.stunting_rate)
+            min_rate_pt = min(pts, key=lambda p: p.stunting_rate)
+            max_vol_pt = max(pts, key=lambda p: p.total_measured)
+
+            max_rate_pt.annotation = f"Puncak Stunting ({max_rate_pt.stunting_rate}%)"
+            if min_rate_pt != max_rate_pt:
+                min_rate_pt.annotation = f"Prevalensi Terendah ({min_rate_pt.stunting_rate}%)"
+            if max_vol_pt != max_rate_pt and max_vol_pt != min_rate_pt:
+                max_vol_pt.annotation = f"Sampel Terbesar ({max_vol_pt.total_measured} balita)"
+
+            time_series.points = pts
+
+    return DashboardTableauAnalytics(
+        selected_desa_filter=desa_filter,
+        section1_birth_weight=sec1,
+        section2_age_cohort=sec2,
+        section3_regional_spread=sec3,
+        section4_posyandu_parenting=sec4,
+        section5_maternal_factors=sec5,
+        time_series_trend=time_series,
+    )
+
+
+def compute_dashboard_summary(desa_filter: Optional[str] = None) -> DashboardSummaryResponse:
     """
     Menghitung agregasi statistik aktual untuk Dashboard Utama berdasarkan dataset aktif.
     Memanfaatkan data yang sama dengan modul Visualisasi tanpa menduplikasi data mentah.
+    Mendukung filter wilayah desa untuk Tableau Filter Action antar-visualisasi.
     """
     dataset = get_active_dataset()
     if not dataset or not dataset.get("rows"):
@@ -730,19 +1561,28 @@ def compute_dashboard_summary() -> DashboardSummaryResponse:
     col_age = _find_source_col(mapping, "usia_saat_ukur")
     col_weight = _find_source_col(mapping, "berat_badan")
     col_height = _find_source_col(mapping, "tinggi_badan")
+    col_zs_tbu = _find_source_col(mapping, "zscore_tb_u")
 
     total_records = len(rows)
     valid_records = 0
     in_scope_balita_count = 0
     out_of_scope_age_count = 0
+    out_of_range_count = 0
 
     row_validity: List[bool] = []
     for r in rows:
         is_valid = True
-        parsed_age = _parse_numeric(r.get(col_age)) if col_age else None
+        has_range_issue = False
+
+        if not col_age or not col_height or not col_weight:
+            is_valid = False
+            has_range_issue = True
+
         if col_age:
+            parsed_age = _parse_numeric(r.get(col_age))
             if parsed_age is None or parsed_age < 0 or parsed_age > 120:
                 is_valid = False
+                has_range_issue = True
             else:
                 if parsed_age < 60:
                     in_scope_balita_count += 1
@@ -753,14 +1593,18 @@ def compute_dashboard_summary() -> DashboardSummaryResponse:
             parsed_h = _parse_numeric(r.get(col_height))
             if parsed_h is None or parsed_h < 30 or parsed_h > 150:
                 is_valid = False
+                has_range_issue = True
 
         if col_weight:
             parsed_w = _parse_numeric(r.get(col_weight))
             if parsed_w is None or parsed_w < 1.0 or parsed_w > 40.0:
                 is_valid = False
+                has_range_issue = True
 
         if is_valid:
             valid_records += 1
+        if has_range_issue:
+            out_of_range_count += 1
         row_validity.append(is_valid)
 
     need_check_records = max(0, total_records - valid_records)
@@ -803,15 +1647,17 @@ def compute_dashboard_summary() -> DashboardSummaryResponse:
             )
 
     # Status Stunting (TB/U)
-    has_status_tbu = col_tbu is not None
+    has_status_tbu = False
     status_tbu_unmapped_reason = None
     stunted_count = 0
     stunted_percentage = 0.0
     tbu_distribution: List[DistributionItem] = []
 
-    if not has_status_tbu:
+    if col_tbu is None:
+        has_status_tbu = False
         status_tbu_unmapped_reason = "Kolom status stunting (TB/U) belum dipetakan dalam dataset aktif."
     else:
+        has_status_tbu = True
         tbu_counts: Dict[str, int] = {}
         valid_tbu_total = 0
         for r in rows:
@@ -837,9 +1683,10 @@ def compute_dashboard_summary() -> DashboardSummaryResponse:
             tbu_distribution.append(DistributionItem(category=cat, count=cnt, percentage=pct))
 
     # BB/U & BB/TB
-    has_status_bbu = col_bbu is not None
+    has_status_bbu = False
     bbu_distribution: List[DistributionItem] = []
-    if has_status_bbu:
+    if col_bbu is not None:
+        has_status_bbu = True
         bbu_counts: Dict[str, int] = {}
         v_bbu_tot = 0
         for r in rows:
@@ -852,9 +1699,10 @@ def compute_dashboard_summary() -> DashboardSummaryResponse:
             pct = round((cnt / v_bbu_tot) * 100, 1) if v_bbu_tot > 0 else 0.0
             bbu_distribution.append(DistributionItem(category=cat, count=cnt, percentage=pct))
 
-    has_status_bbtb = col_bbtb is not None
+    has_status_bbtb = False
     bbtb_distribution: List[DistributionItem] = []
-    if has_status_bbtb:
+    if col_bbtb is not None:
+        has_status_bbtb = True
         bbtb_counts: Dict[str, int] = {}
         v_bbtb_tot = 0
         for r in rows:
@@ -868,9 +1716,10 @@ def compute_dashboard_summary() -> DashboardSummaryResponse:
             bbtb_distribution.append(DistributionItem(category=cat, count=cnt, percentage=pct))
 
     # Usia & Gender
-    has_age = col_age is not None
+    has_age = False
     age_distribution: List[DistributionItem] = []
-    if has_age:
+    if col_age is not None:
+        has_age = True
         age_counts = {
             "0–5 bln": 0,
             "6–11 bln": 0,
@@ -900,9 +1749,10 @@ def compute_dashboard_summary() -> DashboardSummaryResponse:
                 )
             )
 
-    has_gender = col_gender is not None
+    has_gender = False
     gender_distribution: List[DistributionItem] = []
-    if has_gender:
+    if col_gender is not None:
+        has_gender = True
         g_counts: Dict[str, int] = {}
         tot_g = 0
         for r in rows:
@@ -932,7 +1782,7 @@ def compute_dashboard_summary() -> DashboardSummaryResponse:
         7: "Jul", 8: "Agu", 9: "Sep", 10: "Okt", 11: "Nov", 12: "Des",
     }
 
-    if not col_date:
+    if col_date is None:
         date_trend_unmapped_reason = "Kolom tanggal pengukuran belum dipetakan dalam dataset aktif."
     else:
         date_group_map: Dict[Tuple[int, int], Dict[str, Any]] = {}
@@ -999,11 +1849,19 @@ def compute_dashboard_summary() -> DashboardSummaryResponse:
         parsed_age = _parse_numeric(r.get(col_age)) if col_age else None
         parsed_w = _parse_numeric(r.get(col_weight)) if col_weight else None
         parsed_h = _parse_numeric(r.get(col_height)) if col_height else None
-        reg_val = str(r.get(col_kec) or r.get(col_pkm) or r.get(col_desa) or "-").strip()
-        g_val = str(r.get(col_gender, "-")).strip().upper()
+
+        val_kec = r.get(col_kec) if col_kec else None
+        val_pkm = r.get(col_pkm) if col_pkm else None
+        val_desa = r.get(col_desa) if col_desa else None
+        reg_val = str(val_kec or val_pkm or val_desa or "-").strip()
+
+        raw_gender = r.get(col_gender) if col_gender else None
+        g_val = str(raw_gender or "-").strip().upper()
         norm_g = "L" if g_val in ["L", "LAKI-LAKI", "LAKI"] else ("P" if g_val in ["P", "PEREMPUAN", "WANITA"] else g_val)
 
         row_status = "Valid" if row_validity[idx] else "Perlu Diperiksa"
+        raw_tbu = r.get(col_tbu) if col_tbu else None
+        status_stunting = str(raw_tbu or "-").strip() if raw_tbu else "-"
 
         preview_rows.append({
             "id": str(idx + 1),
@@ -1014,11 +1872,35 @@ def compute_dashboard_summary() -> DashboardSummaryResponse:
             "tinggiBadan": round(parsed_h, 1) if parsed_h is not None else 0.0,
             "wilayah": reg_val,
             "statusData": row_status,
-            "statusStunting": str(r.get(col_tbu) or "-").strip() if col_tbu else "-",
+            "statusStunting": status_stunting,
         })
 
     readiness_status = preview_res.readiness_status if preview_res else "siap_analisis"
     readiness_message = preview_res.readiness_message if preview_res else None
+
+    # Kualitas dan Kelengkapan Data
+    total_quality_issues = len(preview_res.quality_issues) if preview_res else 0
+    duplicates_count = preview_res.identical_duplicates_count if preview_res else 0
+    repeat_measurements_count = preview_res.potential_repeat_measurements_count if preview_res else 0
+    missing_values_count = sum(c.null_count for c in preview_res.columns) if preview_res else 0
+
+    required_antropometri_keys = ["usia_saat_ukur", "jenis_kelamin", "berat_badan", "tinggi_badan", "status_tb_u"]
+    mapped_targets = set(mapping.values())
+    unmapped_required_columns = [k for k in required_antropometri_keys if k not in mapped_targets]
+
+    quality_highlights: List[str] = []
+    if duplicates_count > 0:
+        quality_highlights.append(f"{duplicates_count} baris duplikasi identik terdeteksi pada dataset")
+    if out_of_scope_age_count > 0:
+        quality_highlights.append(f"{out_of_scope_age_count} catatan anak berusia ≥ 60 bulan (di luar cakupan kohor balita 0–59 bln)")
+    if out_of_range_count > 0:
+        quality_highlights.append(f"{out_of_range_count} entri memuat nilai antropometri di luar rentang biologis wajar")
+    if missing_values_count > 0:
+        quality_highlights.append(f"{missing_values_count} nilai sel kosong pada berbagai atribut data balita")
+    if unmapped_required_columns:
+        quality_highlights.append(f"{len(unmapped_required_columns)} variabel wajib antropometri belum dipetakan")
+    if not quality_highlights:
+        quality_highlights.append("Seluruh catatan lulus pemeriksaan dasar rentang nilai dan kelengkapan atribut")
 
     warnings: List[str] = []
     if out_of_scope_age_count > 0:
@@ -1030,9 +1912,24 @@ def compute_dashboard_summary() -> DashboardSummaryResponse:
     if not has_date_trend:
         warnings.append("Grafik tren bulanan belum dapat ditampilkan karena kolom tanggal pengukuran belum dipetakan.")
 
+    updated_at = dataset.get("updated_at")
+
+    tableau_analytics = _compute_dashboard_tableau_analytics(
+        all_rows=rows,
+        mapping=mapping,
+        col_tbu=col_tbu,
+        col_zs_tbu=col_zs_tbu,
+        col_age=col_age,
+        col_kec=col_kec,
+        col_pkm=col_pkm,
+        col_desa=col_desa,
+        desa_filter=desa_filter,
+    )
+
     return DashboardSummaryResponse(
         has_active_dataset=True,
         filename=filename,
+        updated_at=updated_at,
         total_records=total_records,
         valid_records=valid_records,
         need_check_records=need_check_records,
@@ -1065,9 +1962,17 @@ def compute_dashboard_summary() -> DashboardSummaryResponse:
         has_risk_factors=has_risk_factors,
         risk_factors_unmapped_reason=risk_factors_unmapped_reason,
         risk_factors=risk_factors,
+        total_quality_issues=total_quality_issues,
+        missing_values_count=missing_values_count,
+        duplicates_count=duplicates_count,
+        repeat_measurements_count=repeat_measurements_count,
+        out_of_range_count=out_of_range_count,
+        unmapped_required_columns=unmapped_required_columns,
+        quality_highlights=quality_highlights,
         preview_rows=preview_rows,
         preview_headers=preview_headers,
         readiness_status=readiness_status,
         readiness_message=readiness_message,
         warnings=warnings,
+        tableau_analytics=tableau_analytics,
     )

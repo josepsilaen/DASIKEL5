@@ -353,3 +353,125 @@ def test_out_of_scope_age_quality_profiling():
     assert len(out_of_scope_issues) == 1
     assert out_of_scope_issues[0]["affected_rows_count"] == 2
     assert "≥ 60 bulan" in out_of_scope_issues[0]["message"]
+
+
+# ------------------ 13. Test Auto-Mapping Collision Prevention (BBLR vs Antropometri) ------------------
+
+def test_bblr_never_mapped_to_berat_badan():
+    """
+    Memastikan bahwa kolom 'bblr' dan variasinya TIDAK PERNAH terpetakan sebagai 'berat_badan'.
+    Sebaliknya harus terpetakan ke 'indikator_bblr'.
+    """
+    from app.services.data_parser import find_suggested_mapping
+
+    bblr_variations = ["bblr", "BBLR", "status_bblr", "indikator_bblr", "riwayat_bblr", "is_bblr"]
+    for col in bblr_variations:
+        target, conf = find_suggested_mapping(col)
+        assert target != "berat_badan", f"Kolom '{col}' salah terpetakan sebagai berat_badan!"
+        assert target == "indikator_bblr", f"Kolom '{col}' seharusnya terpetakan ke indikator_bblr, didapat: {target}"
+        assert conf >= 0.90, f"Confidence '{col}' kurang tinggi: {conf}"
+
+
+def test_anthropometry_and_birth_factors_collision_free_mapping():
+    """
+    Memastikan tidak ada collision antara variabel berat badan, berat lahir, indikator BBLR,
+    tinggi badan, dan panjang lahir.
+    """
+    from app.services.data_parser import find_suggested_mapping
+
+    expected_mappings = {
+        "berat_kg": "berat_badan",
+        "tinggi_cm": "tinggi_badan",
+        "pb_lahir_cm": "panjang_lahir",
+        "bb_lahir_kg": "berat_lahir",
+        "bblr": "indikator_bblr",
+        "pb_lahir_pendek": "indikator_pb_lahir",
+        "naik_bb": "status_naik_berat_badan",
+        "bb": "berat_badan",
+        "tb": "tinggi_badan",
+        "usia_bulan": "usia_saat_ukur",
+        "lila_cm": "lila_ibu",
+    }
+
+    for col_name, expected_std in expected_mappings.items():
+        mapped, conf = find_suggested_mapping(col_name)
+        assert mapped == expected_std, f"Kolom '{col_name}' dipetakan ke '{mapped}', seharusnya '{expected_std}'"
+        assert conf >= 0.90, f"Confidence '{col_name}' terlalu rendah: {conf}"
+
+    # Verifikasi negatif khusus
+    pb_target, _ = find_suggested_mapping("pb_lahir_cm")
+    assert pb_target != "tinggi_badan", "pb_lahir_cm tidak boleh dipetakan ke tinggi_badan!"
+
+    bbl_target, _ = find_suggested_mapping("bb_lahir_kg")
+    assert bbl_target != "berat_badan", "bb_lahir_kg tidak boleh dipetakan ke berat_badan!"
+
+
+def test_similar_columns_dataset_upload_preview():
+    """
+    Menguji upload dataset sintetis dengan nama-nama kolom mirip untuk memastikan auto-mapping
+    dan pemetaan kolom aktif tidak tertukar atau collision.
+    """
+    headers = [
+        "Usia_Bulan", "Jenis_Kelamin", "Berat_Kg", "Tinggi_Cm",
+        "BB_Lahir_Kg", "PB_Lahir_Cm", "BBLR", "PB_Lahir_Pendek", "Naik_BB"
+    ]
+    rows = [
+        ["12", "L", "9.5", "75.2", "3.1", "49.0", "0", "0", "N"],
+        ["24", "P", "11.0", "84.5", "2.3", "46.0", "1", "1", "T"],
+    ]
+    csv_bytes = create_synthetic_csv_bytes(headers, rows)
+
+    response = client.post(
+        "/api/data/upload-preview",
+        files={"file": ("similar_cols.csv", csv_bytes, "text/csv")},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["readiness_status"] == "siap_analisis"
+
+    mappings = {c["name"]: c["suggested_mapping"] for c in data["columns"]}
+    assert mappings["Berat_Kg"] == "berat_badan"
+    assert mappings["Tinggi_Cm"] == "tinggi_badan"
+    assert mappings["BBLR"] == "indikator_bblr"
+    assert mappings["PB_Lahir_Cm"] == "panjang_lahir"
+    assert mappings["BB_Lahir_Kg"] == "berat_lahir"
+    assert mappings["PB_Lahir_Pendek"] == "indikator_pb_lahir"
+    assert mappings["Naik_BB"] == "status_naik_berat_badan"
+
+
+def test_actual_dummy_dataset_dashboard_kpi_100_percent_valid():
+    """
+    Menguji dataset aktual 'dataset_dummy_stunting_bersih.csv' untuk memastikan bahwa
+    setelah perbaikan auto-mapping, KPI Dashboard menampilkan 2.340 data valid (100%).
+    """
+    import os
+    actual_path = r"D:\SEMESTER 5\DALISDASI\dataset_dummy_stunting_bersih.csv"
+    if not os.path.exists(actual_path):
+        pytest.skip("Dataset aktual tidak ditemukan pada path lokal.")
+
+    with open(actual_path, "rb") as f:
+        file_bytes = f.read()
+
+    # Unggah dataset melalui API endpoint
+    upload_res = client.post(
+        "/api/data/upload-preview",
+        files={"file": ("dataset_dummy_stunting_bersih.csv", file_bytes, "text/csv")},
+    )
+    assert upload_res.status_code == 200
+    upload_data = upload_res.json()
+    assert upload_data["readiness_status"] == "siap_analisis"
+
+    # Periksa KPI Dashboard melalui API endpoint
+    dash_res = client.get("/api/dashboard/summary")
+    assert dash_res.status_code == 200
+    summary = dash_res.json()
+
+    assert summary["has_active_dataset"] is True
+    assert summary["total_records"] == 2340
+    assert summary["valid_records"] == 2340
+    assert summary["need_check_records"] == 0
+    assert summary["valid_percentage"] == 100.0
+    assert summary["need_check_percentage"] == 0.0
+    assert summary["out_of_range_count"] == 0
+

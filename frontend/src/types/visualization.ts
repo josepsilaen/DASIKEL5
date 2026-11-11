@@ -2,7 +2,9 @@
  * Tipe data TypeScript untuk Fitur Visualisasi Data Balita (Stage 4.1).
  * Mencakup struktur distribusi status gizi (TB/U, BB/U, BB/TB), kelompok usia,
  * jenis kelamin, distribusi per wilayah, nilai Z-score, dan opsi filter interaktif.
+ * Diperluas untuk mendukung Lima Kelompok Analisis Mendalam (Tableau Analytics).
  */
+import type { DashboardTableauAnalytics } from './dashboard';
 
 export interface DistributionItem {
   category: string;
@@ -46,6 +48,7 @@ export interface VisualizationFilterRequest {
   desa_kelurahan?: string | null;
   jenis_kelamin?: string | null;
   age_group?: string | null;
+  status_stunting?: string | null;
   periode?: string | null;
   region_type?: 'kecamatan' | 'puskesmas' | 'desa_kelurahan';
   column_mapping?: Record<string, string>;
@@ -111,4 +114,7 @@ export interface VisualizationResponse {
   filter_options: FilterOptions;
   active_filters: Record<string, string | null | undefined>;
   warnings: string[];
+
+  // Lima Kelompok Analisis Mendalam Tableau
+  tableau_analytics?: DashboardTableauAnalytics | null;
 }

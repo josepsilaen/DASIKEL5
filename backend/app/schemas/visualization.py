@@ -3,7 +3,7 @@ Skema Pydantic untuk Fitur Visualisasi Data Balita (Stage 4.1).
 Mendukung agregasi statistik deskriptif, distribusi status gizi (TB/U, BB/U, BB/TB),
 komposisi kelompok usia, jenis kelamin, distribusi wilayah, serta analisis Z-Score.
 """
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, TYPE_CHECKING
 from pydantic import BaseModel, Field
 
 
@@ -66,6 +66,7 @@ class VisualizationFilterRequest(BaseModel):
     desa_kelurahan: Optional[str] = Field(default=None, description="Filter berdasarkan desa/kelurahan tertentu")
     jenis_kelamin: Optional[str] = Field(default=None, description="Filter berdasarkan jenis kelamin (L/P)")
     age_group: Optional[str] = Field(default=None, description="Filter kelompok usia (contoh: 0-5, 6-11, 12-23, 24-35, 36-47, 48-59, 60+)")
+    status_stunting: Optional[str] = Field(default=None, description="Filter status stunting ('Stunting' atau 'Tidak Stunting')")
     periode: Optional[str] = Field(default=None, description="Filter berdasarkan periode pengukuran")
     region_type: Optional[str] = Field(
         default="puskesmas",
@@ -136,3 +137,12 @@ class VisualizationResponse(BaseModel):
     filter_options: FilterOptions = Field(default_factory=FilterOptions, description="Daftar opsi dropdown filter yang valid")
     active_filters: Dict[str, Optional[str]] = Field(default_factory=dict, description="Nilai filter yang sedang aktif")
     warnings: List[str] = Field(default_factory=list, description="Catatan atau batasan validitas dataset")
+
+    # Lima Kelompok Analisis Mendalam Sesuai Tableau (15 Visualisasi)
+    tableau_analytics: Optional[Any] = Field(
+        default=None,
+        description="Analisis lima kelompok visualisasi mendalam yang dihitung dinamis dari dataset aktif"
+    )
+
+
+# Resolve forward references setelah definisi kelas selesai

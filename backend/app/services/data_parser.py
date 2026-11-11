@@ -88,7 +88,7 @@ STANDARD_COLUMNS: List[StandardColumnDefinition] = [
         is_required_for_stunting=True,
         expected_type="float",
         unit="kg",
-        aliases=["berat", "bb", "berat badan", "bb_kg", "berat_kg", "berat (kg)", "bb (kg)", "berat badan (kg)"],
+        aliases=["berat", "bb", "berat badan", "bb_kg", "berat_kg", "berat (kg)", "bb (kg)", "berat badan (kg)", "bobot"],
     ),
     StandardColumnDefinition(
         key="tinggi_badan",
@@ -98,7 +98,7 @@ STANDARD_COLUMNS: List[StandardColumnDefinition] = [
         is_required_for_stunting=True,
         expected_type="float",
         unit="cm",
-        aliases=["tinggi", "tb", "tinggi badan", "tb_cm", "tinggi_cm", "tinggi (cm)", "tb (cm)", "panjang badan", "pb", "panjang (cm)"],
+        aliases=["tinggi", "tb", "tinggi badan", "tb_cm", "tinggi_cm", "tinggi (cm)", "tb (cm)", "panjang badan", "pb", "panjang (cm)", "panjang"],
     ),
     StandardColumnDefinition(
         key="status_tb_u",
@@ -107,7 +107,7 @@ STANDARD_COLUMNS: List[StandardColumnDefinition] = [
         category="clinical",
         is_required_for_stunting=False,
         expected_type="string",
-        aliases=["tb/u", "status tb/u", "status_tb_u", "kategori tb/u", "status stunting", "tb_u", "status gizi tb/u", "tbu"],
+        aliases=["tb/u", "status tb/u", "status_tb_u", "kategori tb/u", "status stunting", "tb_u", "status gizi tb/u", "tbu", "kategori_tbu", "kategori tbu"],
     ),
     StandardColumnDefinition(
         key="zscore_tb_u",
@@ -116,7 +116,7 @@ STANDARD_COLUMNS: List[StandardColumnDefinition] = [
         category="clinical",
         is_required_for_stunting=False,
         expected_type="float",
-        aliases=["zs tb/u", "zscore tb/u", "z-score tb/u", "zs_tbu", "zscore_tbu", "z_score_tb_u", "zscore (tb/u)", "zs tbu"],
+        aliases=["zs tb/u", "zscore tb/u", "z-score tb/u", "zs_tbu", "zscore_tbu", "z_score_tb_u", "zscore (tb/u)", "zs tbu", "zscore tbu"],
     ),
     StandardColumnDefinition(
         key="status_bb_u",
@@ -162,7 +162,11 @@ STANDARD_COLUMNS: List[StandardColumnDefinition] = [
         is_required_for_stunting=False,
         expected_type="float",
         unit="kg",
-        aliases=["bb lahir", "berat lahir", "bbl", "bb_lahir", "berat badan lahir", "bbl (kg)", "bb lahir (kg)"],
+        aliases=[
+            "bb lahir", "berat lahir", "bbl", "bb_lahir", "berat badan lahir",
+            "bbl (kg)", "bb lahir (kg)", "bb_lahir_kg", "bb lahir kg",
+            "berat_lahir_kg", "berat lahir kg", "berat lahir (kg)", "berat_lahir (kg)"
+        ],
     ),
     StandardColumnDefinition(
         key="tanggal_lahir",
@@ -181,7 +185,35 @@ STANDARD_COLUMNS: List[StandardColumnDefinition] = [
         is_required_for_stunting=False,
         expected_type="float",
         unit="cm",
-        aliases=["tb lahir", "panjang lahir", "pbl", "tb_lahir", "panjang badan lahir", "panjang lahir (cm)"],
+        aliases=[
+            "tb lahir", "panjang lahir", "pbl", "tb_lahir", "panjang badan lahir",
+            "panjang lahir (cm)", "pb lahir", "pb_lahir", "pb_lahir_cm", "pb lahir cm",
+            "tb_lahir_cm", "tb lahir cm", "panjang_lahir_cm", "panjang lahir cm"
+        ],
+    ),
+    StandardColumnDefinition(
+        key="indikator_bblr",
+        label="Indikator BBLR",
+        description="Status atau indikator riwayat Bayi Berat Lahir Rendah (1/0, Ya/Tidak)",
+        category="clinical",
+        is_required_for_stunting=False,
+        expected_type="string",
+        aliases=[
+            "bblr", "status_bblr", "status bblr", "indikator_bblr", "indikator bblr",
+            "riwayat_bblr", "riwayat bblr", "is_bblr", "bblr_flag"
+        ],
+    ),
+    StandardColumnDefinition(
+        key="indikator_pb_lahir",
+        label="Indikator PB Lahir Pendek",
+        description="Status atau indikator bayi lahir dengan panjang badan pendek (< 48 cm: 1/0, Ya/Tidak)",
+        category="clinical",
+        is_required_for_stunting=False,
+        expected_type="string",
+        aliases=[
+            "pb_lahir_pendek", "pb lahir pendek", "indikator_pb_lahir", "indikator pb lahir",
+            "status_pb_lahir", "status pb lahir"
+        ],
     ),
     StandardColumnDefinition(
         key="cara_ukur",
@@ -200,6 +232,52 @@ STANDARD_COLUMNS: List[StandardColumnDefinition] = [
         is_required_for_stunting=False,
         expected_type="date",
         aliases=["tgl ukur", "tanggal ukur", "tanggal pengukuran", "tgl_pengukuran", "tgl_ukur", "tgl penimbangan", "tanggal penimbangan"],
+    ),
+    StandardColumnDefinition(
+        key="status_naik_berat_badan",
+        label="Status Naik Berat Badan (KMS N/T/O/B)",
+        description="Status kenaikan berat badan balita pada KMS (N = Naik, T = Tidak Naik, O = Tidak Ditimbang Bulan Lalu, B = Baru Pertama Timbang)",
+        category="clinical",
+        is_required_for_stunting=False,
+        expected_type="string",
+        aliases=["naik bb", "status bb", "n/t/o/b", "status_naik_berat_badan", "status naik bb", "naik berat badan", "status timbang"],
+    ),
+    StandardColumnDefinition(
+        key="kehadiran_posyandu",
+        label="Kehadiran Posyandu",
+        description="Frekuensi atau status kehadiran balita dalam kegiatan Posyandu",
+        category="administrative",
+        is_required_for_stunting=False,
+        expected_type="string",
+        aliases=["kehadiran posyandu", "hadir posyandu", "kehadiran", "presensi posyandu", "kunjungan posyandu"],
+    ),
+    StandardColumnDefinition(
+        key="kelas_ibu_balita",
+        label="Kelas Ibu Balita",
+        description="Keikutsertaan ibu balita dalam program Kelas Ibu Balita (Ya / Tidak)",
+        category="clinical",
+        is_required_for_stunting=False,
+        expected_type="string",
+        aliases=["kelas ibu", "kelas ibu balita", "ikut kelas ibu", "kelas_ibu_balita", "keikutsertaan kelas ibu"],
+    ),
+    StandardColumnDefinition(
+        key="lila_ibu",
+        label="LiLA Ibu (cm)",
+        description="Ukuran lingkar lengan atas ibu hamil/menyusui dalam cm (indikator risiko KEK jika < 23.5 cm)",
+        category="clinical",
+        is_required_for_stunting=False,
+        expected_type="float",
+        unit="cm",
+        aliases=["lila", "lila ibu", "lingkar lengan atas", "lila (cm)", "lila_ibu", "lingkar lengan", "lila_cm", "lila cm"],
+    ),
+    StandardColumnDefinition(
+        key="status_lila",
+        label="Status LiLA Ibu (KEK / Normal)",
+        description="Status risiko Kurang Energi Kronis ibu berdasarkan LiLA (KEK < 23.5 cm / Normal)",
+        category="clinical",
+        is_required_for_stunting=False,
+        expected_type="string",
+        aliases=["status lila", "kategori lila", "status_lila", "status kek", "status gizi ibu"],
     ),
 ]
 
@@ -557,8 +635,16 @@ def mask_raw_text_pii(text: str) -> str:
 
 
 def find_suggested_mapping(col_name: str) -> Tuple[Optional[str], float]:
-    """Mencari kandidat kolom standar yang paling cocok dengan nama kolom sumber."""
-    # Kolom PII (terkonfirmasi maupun mencurigakan) tidak boleh dipetakan ke kolom standar stunting
+    """
+    Mencari kandidat kolom standar yang paling cocok dengan nama kolom sumber.
+    Menggunakan pendekatan bertingkat berbasis prioritas yang ketat:
+    1. Filter PII dan kolom kosong/generik.
+    2. Tingkat 1: Kecocokan persis pada key standar (confidence = 1.0).
+    3. Tingkat 2: Kecocokan persis pada alias ternormalisasi / compact dengan guard pencegahan collision (confidence = 0.95).
+    4. Tingkat 3: Kecocokan token/kata lengkap dengan proteksi singkatan pendek (confidence = 0.85).
+    5. Tingkat 4: Substring berbasis batas kata (word boundary) hanya untuk alias deskriptif >= 4 karakter (confidence = 0.75).
+    """
+    # 1. Kolom PII (terkonfirmasi maupun mencurigakan) tidak boleh dipetakan otomatis ke kolom antropometri
     if is_pii_column(col_name):
         return None, 0.0
 
@@ -577,23 +663,108 @@ def find_suggested_mapping(col_name: str) -> Tuple[Optional[str], float]:
     if not norm_col:
         return None, 0.0
 
+    compact_col = re.sub(r"[^a-z0-9]", "", raw_lower)
+    col_tokens = set(norm_col.split())
+
+    # --- PENGAMAN DAN DISAMBIGUASI SEMANTIK (COLLISION GUARDS) ---
+    # Membedakan: berat badan vs berat lahir vs BBLR vs tinggi badan vs panjang lahir
+    is_birth_col = any(t in col_tokens for t in {"lahir", "birth", "bbl", "pbl"}) or "lahir" in compact_col
+    is_bblr_flag = "bblr" in col_tokens or compact_col == "bblr" or "bblr" in compact_col
+    is_pb_pendek_flag = "pendek" in col_tokens and is_birth_col
+    is_clinical_status = any(t in col_tokens for t in {"status", "kategori", "zscore", "zs"})
+    is_naik_weight = "naik" in col_tokens and ("bb" in col_tokens or "berat" in col_tokens)
+    is_category_or_group = any(t in col_tokens for t in {"kelompok", "kategori", "grup", "group", "range", "rentang", "cohort", "kohor"})
+
+    # Tingkat 1: Kecocokan persis pada key standar (confidence 1.0)
+    for std in STANDARD_COLUMNS:
+        norm_key = normalize_text(std.key)
+        compact_key = re.sub(r"[^a-z0-9]", "", std.key)
+        if norm_col == norm_key or compact_col == compact_key:
+            return std.key, 1.0
+
+    # Tingkat 2: Kecocokan persis pada alias ternormalisasi atau compact (confidence 0.95)
+    for std in STANDARD_COLUMNS:
+        # Aturan eksklusi agar tidak terjadi collision antarvariabel mirip
+        if std.key == "berat_badan" and (is_birth_col or is_bblr_flag or is_clinical_status or is_naik_weight):
+            continue
+        if std.key == "tinggi_badan" and (is_birth_col or is_pb_pendek_flag or is_clinical_status):
+            continue
+        if std.key == "berat_lahir" and (is_bblr_flag and not ("berat" in col_tokens or "bb" in col_tokens)):
+            continue
+        if std.key == "panjang_lahir" and is_pb_pendek_flag:
+            continue
+        if std.key == "usia_saat_ukur" and is_category_or_group:
+            continue
+
+        for alias in std.aliases:
+            norm_alias = normalize_text(alias)
+            compact_alias = re.sub(r"[^a-z0-9]", "", alias.lower())
+            if norm_col == norm_alias or compact_col == compact_alias:
+                return std.key, 0.95
+
+    # Tingkat 3: Kecocokan token/kata lengkap (confidence 0.85)
     best_match = None
     best_confidence = 0.0
 
     for std in STANDARD_COLUMNS:
-        # Kecocokan persis pada key
-        if norm_col == std.key:
-            return std.key, 1.0
+        if std.key == "berat_badan" and (is_birth_col or is_bblr_flag or is_clinical_status or is_naik_weight):
+            continue
+        if std.key == "tinggi_badan" and (is_birth_col or is_pb_pendek_flag or is_clinical_status):
+            continue
+        if std.key == "berat_lahir" and (is_bblr_flag and not ("berat" in col_tokens or "bb" in col_tokens)):
+            continue
+        if std.key == "panjang_lahir" and is_pb_pendek_flag:
+            continue
+        if std.key == "usia_saat_ukur" and is_category_or_group:
+            continue
 
         for alias in std.aliases:
             norm_alias = normalize_text(alias)
-            if norm_col == norm_alias:
-                return std.key, 0.95
-            if norm_alias in norm_col or norm_col in norm_alias:
-                confidence = 0.75
-                if confidence > best_confidence:
+            alias_tokens = set(norm_alias.split())
+
+            # Hindari token singkatan pendek (<=3 huruf seperti 'bb', 'tb', 'pb') cocok secara longgar
+            if len(alias_tokens) == 1:
+                token = list(alias_tokens)[0]
+                if len(token) <= 3:
+                    if col_tokens in [{token}, {token, "kg"}, {token, "cm"}, {token, "bln"}, {token, "bulan"}]:
+                        return std.key, 0.90
+                    continue
+
+            # Jika semua token alias merupakan subset dari kata kolom sumber
+            if alias_tokens.issubset(col_tokens):
+                conf = 0.85
+                if conf > best_confidence:
                     best_match = std.key
-                    best_confidence = confidence
+                    best_confidence = conf
+
+    if best_match and best_confidence >= 0.70:
+        return best_match, best_confidence
+
+    # Tingkat 4: Substring berbasis batas kata (word boundary) hanya untuk alias deskriptif >= 4 karakter
+    for std in STANDARD_COLUMNS:
+        if std.key == "berat_badan" and (is_birth_col or is_bblr_flag or is_clinical_status or is_naik_weight):
+            continue
+        if std.key == "tinggi_badan" and (is_birth_col or is_pb_pendek_flag or is_clinical_status):
+            continue
+        if std.key == "berat_lahir" and (is_bblr_flag and not ("berat" in col_tokens or "bb" in col_tokens)):
+            continue
+        if std.key == "panjang_lahir" and is_pb_pendek_flag:
+            continue
+        if std.key == "usia_saat_ukur" and is_category_or_group:
+            continue
+
+        for alias in std.aliases:
+            norm_alias = normalize_text(alias)
+            if len(norm_alias) < 4:
+                continue
+
+            # Gunakan batas kata regex \b agar tidak mencocokkan substring di dalam kata lain
+            pattern = r"\b" + re.escape(norm_alias) + r"\b"
+            if re.search(pattern, norm_col):
+                conf = 0.75
+                if conf > best_confidence:
+                    best_match = std.key
+                    best_confidence = conf
 
     return best_match, best_confidence
 

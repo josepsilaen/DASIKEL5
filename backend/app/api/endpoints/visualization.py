@@ -29,6 +29,7 @@ def get_visualization_data(
     desa_kelurahan: Optional[str] = Query(None, description="Filter desa/kelurahan"),
     jenis_kelamin: Optional[str] = Query(None, description="Filter jenis kelamin (L/P)"),
     age_group: Optional[str] = Query(None, description="Filter kelompok usia (misal: 0-5, 6-11, 12-23, 24-35, 36-47, 48-59, 60+)"),
+    status_stunting: Optional[str] = Query(None, description="Filter status stunting (Stunting / Tidak Stunting)"),
     periode: Optional[str] = Query(None, description="Filter periode pengukuran"),
     region_type: Optional[str] = Query("puskesmas", description="Tipe wilayah: kecamatan, puskesmas, atau desa_kelurahan"),
 ) -> VisualizationResponse:
@@ -38,6 +39,7 @@ def get_visualization_data(
         desa_kelurahan=desa_kelurahan,
         jenis_kelamin=jenis_kelamin,
         age_group=age_group,
+        status_stunting=status_stunting,
         periode=periode,
         region_type=region_type,
     )

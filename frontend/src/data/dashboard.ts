@@ -25,6 +25,7 @@ export interface StatCardData {
   unit: string;
   description: string;
   trend?: { value: number; direction: 'up' | 'down' | 'neutral' };
+  indicatorBadge?: { text: string; variant?: 'teal' | 'amber' | 'emerald' | 'rose' };
   isSynthetic?: boolean;
 }
 

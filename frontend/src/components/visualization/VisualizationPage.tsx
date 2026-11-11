@@ -7,6 +7,7 @@ import { NutritionalStatusCharts } from './NutritionalStatusCharts';
 import { CharacteristicsCharts } from './CharacteristicsCharts';
 import { RegionalDistributionChart } from './RegionalDistributionChart';
 import { ZScoreDistributionPanel } from './ZScoreDistributionPanel';
+import { Official10Visualizations } from './Official10Visualizations';
 
 import { fetchVisualizationData } from '../../services/api';
 import type {
@@ -14,7 +15,7 @@ import type {
   VisualizationFilterRequest,
 } from '../../types/visualization';
 import type { PageId } from '../../types/navigation';
-import { Loader2, RefreshCw, AlertTriangle, ArrowRight, ShieldCheck, Database, CheckCircle2 } from 'lucide-react';
+import { Loader2, RefreshCw, AlertTriangle, ArrowRight, ShieldCheck, Database, CheckCircle2, BarChart3, Layers } from 'lucide-react';
 
 interface VisualizationPageProps {
   onNavigate: (page: PageId) => void;
@@ -24,6 +25,8 @@ export const VisualizationPage: React.FC<VisualizationPageProps> = ({ onNavigate
   const [data, setData] = useState<VisualizationResponse | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [selectedDesa, setSelectedDesa] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'tableau' | 'antropometri'>('tableau');
 
   const [currentFilter, setCurrentFilter] = useState<VisualizationFilterRequest>({
     kecamatan: null,
@@ -31,6 +34,7 @@ export const VisualizationPage: React.FC<VisualizationPageProps> = ({ onNavigate
     desa_kelurahan: null,
     jenis_kelamin: null,
     age_group: null,
+    status_stunting: null,
     region_type: 'puskesmas',
   });
 
@@ -64,6 +68,28 @@ export const VisualizationPage: React.FC<VisualizationPageProps> = ({ onNavigate
     const updated = { ...currentFilter, region_type: regionType };
     setCurrentFilter(updated);
   };
+
+  const handleDesaSelect = (desa: string) => {
+    setSelectedDesa(desa);
+    setCurrentFilter(prev => ({ ...prev, desa_kelurahan: desa }));
+  };
+
+  const handleDesaReset = () => {
+    setSelectedDesa(null);
+    setCurrentFilter(prev => ({ ...prev, desa_kelurahan: null }));
+  };
+
+  const stuntedCount = data?.status_tbu_distribution
+    ? data.status_tbu_distribution
+        .filter((d) => d.category.toLowerCase().includes('pendek'))
+        .reduce((sum, d) => sum + d.count, 0)
+    : 0;
+
+  const totalTbuValid = data?.status_tbu_distribution
+    ? data.status_tbu_distribution.reduce((sum, d) => sum + d.count, 0)
+    : 0;
+
+  const stuntingPercentage = totalTbuValid > 0 ? (stuntedCount / totalTbuValid) * 100 : 0;
 
   return (
     <div className="space-y-6 lg:space-y-7 animate-fadeIn w-full">
@@ -174,54 +200,114 @@ export const VisualizationPage: React.FC<VisualizationPageProps> = ({ onNavigate
             isLoading={isLoading}
           />
 
-          {/* Kartu Ringkasan KPI */}
-          {data.summary && (
-            <VisualizationSummaryCards
-              summary={data.summary}
-              totalUnfiltered={data.total_unfiltered_rows}
+          {/* Navigasi Mode Visualisasi: 10 Visualisasi Advance (4.2) vs Standar Antropometri Baku */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-1.5 bg-slate-100/90 rounded-2xl border border-slate-200">
+            <div className="flex items-center gap-1.5 w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={() => setViewMode('tableau')}
+                className={`flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                  viewMode === 'tableau'
+                    ? 'bg-white text-teal-800 shadow-xs border border-slate-200/80'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                }`}
+              >
+                <BarChart3 className="w-4 h-4 text-teal-600" />
+                <span>10 Visualisasi</span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-teal-100 text-teal-800 ml-1">
+                  10 Utama • 5 Advance
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setViewMode('antropometri')}
+                className={`flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                  viewMode === 'antropometri'
+                    ? 'bg-white text-slate-800 shadow-xs border border-slate-200/80'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                }`}
+              >
+                <Layers className="w-4 h-4 text-slate-500" />
+                <span>Eksplorasi Antropometri Baku</span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-slate-200 text-slate-700 ml-1">
+                  WHO Standar
+                </span>
+              </button>
+            </div>
+            <div className="px-3 text-[11px] text-slate-500 hidden md:block">
+              {viewMode === 'tableau'
+                ? 'Ketentuan Resmi 4.2: Box Plot, Treemap, Small Multiples, Heatmap, Deret Waktu'
+                : 'Distribusi univariat status gizi baku TB/U, BB/U, BB/TB & Z-Score'}
+            </div>
+          </div>
+
+          {/* Mode 1: Sepuluh Visualisasi Utama Resmi Proyek Bagian 4.2 */}
+          {viewMode === 'tableau' && (
+            <Official10Visualizations
+              analytics={data.tableau_analytics}
+              totalBalita={data.total_unfiltered_rows}
+              totalFiltered={data.total_filtered_rows}
+              stuntedCount={stuntedCount}
+              stuntingPercentage={stuntingPercentage}
+              selectedDesa={selectedDesa}
+              onSelectDesa={handleDesaSelect}
+              onResetDesa={handleDesaReset}
+              onGoToDataBalita={() => onNavigate('data-balita')}
             />
           )}
 
-          {/* Bagian 1: Distribusi Status Gizi (TB/U, BB/U, BB/TB) */}
-          <NutritionalStatusCharts
-            hasStatusTbu={data.has_status_tbu_column}
-            statusTbuDistribution={data.status_tbu_distribution}
-            statusTbuUnmappedReason={data.status_tbu_unmapped_reason}
-            hasStatusBbu={data.has_status_bbu_column}
-            statusBbuDistribution={data.status_bbu_distribution}
-            statusBbuUnmappedReason={data.status_bbu_unmapped_reason}
-            hasStatusBbtb={data.has_status_bbtb_column}
-            statusBbtbDistribution={data.status_bbtb_distribution}
-            statusBbtbUnmappedReason={data.status_bbtb_unmapped_reason}
-          />
+          {/* Mode 2: Eksplorasi Antropometri Baku WHO (Fitur Asli Dipertahankan) */}
+          {viewMode === 'antropometri' && (
+            <div className="space-y-8">
+              {data.summary && (
+                <VisualizationSummaryCards
+                  summary={data.summary}
+                  totalUnfiltered={data.total_unfiltered_rows}
+                />
+              )}
+              {/* Bagian 1: Distribusi Status Gizi (TB/U, BB/U, BB/TB) */}
+              <NutritionalStatusCharts
+                hasStatusTbu={data.has_status_tbu_column}
+                statusTbuDistribution={data.status_tbu_distribution}
+                statusTbuUnmappedReason={data.status_tbu_unmapped_reason}
+                hasStatusBbu={data.has_status_bbu_column}
+                statusBbuDistribution={data.status_bbu_distribution}
+                statusBbuUnmappedReason={data.status_bbu_unmapped_reason}
+                hasStatusBbtb={data.has_status_bbtb_column}
+                statusBbtbDistribution={data.status_bbtb_distribution}
+                statusBbtbUnmappedReason={data.status_bbtb_unmapped_reason}
+              />
 
-          {/* Bagian 2: Distribusi Karakteristik Demografi (Kelompok Usia & Gender) */}
-          <CharacteristicsCharts
-            hasAgeColumn={data.has_age_column}
-            ageDistribution={data.age_group_distribution}
-            ageUnmappedReason={data.age_unmapped_reason}
-            hasGenderColumn={data.has_gender_column}
-            genderDistribution={data.gender_distribution}
-            genderUnmappedReason={data.gender_unmapped_reason}
-          />
+              {/* Bagian 2: Distribusi Karakteristik Demografi (Kelompok Usia & Gender) */}
+              <CharacteristicsCharts
+                hasAgeColumn={data.has_age_column}
+                ageDistribution={data.age_group_distribution}
+                ageUnmappedReason={data.age_unmapped_reason}
+                hasGenderColumn={data.has_gender_column}
+                genderDistribution={data.gender_distribution}
+                genderUnmappedReason={data.gender_unmapped_reason}
+              />
 
-          {/* Bagian 3: Distribusi Wilayah (Horizontal Bar Chart) */}
-          <RegionalDistributionChart
-            availableRegionTypes={data.available_region_types}
-            selectedRegionType={data.selected_region_type}
-            onRegionTypeChange={handleRegionTypeChange}
-            regionDistribution={data.region_distribution}
-            regionUnmappedReason={data.region_unmapped_reason}
-            hasStatusTbu={data.has_status_tbu_column}
-            isLoading={isLoading}
-          />
+              {/* Bagian 3: Distribusi Wilayah (Horizontal Bar Chart) */}
+              <RegionalDistributionChart
+                availableRegionTypes={data.available_region_types}
+                selectedRegionType={data.selected_region_type}
+                onRegionTypeChange={handleRegionTypeChange}
+                regionDistribution={data.region_distribution}
+                regionUnmappedReason={data.region_unmapped_reason}
+                hasStatusTbu={data.has_status_tbu_column}
+                isLoading={isLoading}
+              />
 
-          {/* Bagian 4: Distribusi Numerik Z-Score (TB/U, BB/U, BB/TB) */}
-          <ZScoreDistributionPanel
-            zscoreTbu={data.zscore_tbu}
-            zscoreBbu={data.zscore_bbu}
-            zscoreBbtb={data.zscore_bbtb}
-          />
+              {/* Bagian 4: Distribusi Numerik Z-Score (TB/U, BB/U, BB/TB) */}
+              <ZScoreDistributionPanel
+                zscoreTbu={data.zscore_tbu}
+                zscoreBbu={data.zscore_bbu}
+                zscoreBbtb={data.zscore_bbtb}
+              />
+            </div>
+          )}
 
           {/* Catatan Integritas Data & Standar Analisis */}
           <div className="bg-white rounded-2xl border border-slate-200/90 p-6 lg:p-7 space-y-3 text-[14px] text-slate-600 shadow-xs">

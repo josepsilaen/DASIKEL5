@@ -209,11 +209,17 @@ export async function fetchVisualizationData(
 
 /**
  * Mengambil ringkasan analitik Dashboard Utama dinamis dari dataset aktif.
+ * Mendukung filter wilayah level desa (Tableau Filter Action).
  */
-export async function fetchDashboardSummary(): Promise<DashboardSummaryResponse> {
-  const endpoint = `${API_BASE_URL}/api/dashboard/summary`;
+export async function fetchDashboardSummary(
+  desaFilter?: string | null
+): Promise<DashboardSummaryResponse> {
+  const url = new URL(`${API_BASE_URL}/api/dashboard/summary`);
+  if (desaFilter && desaFilter.trim() !== '') {
+    url.searchParams.set('desa_kelurahan', desaFilter.trim());
+  }
 
-  const response = await fetch(endpoint, {
+  const response = await fetch(url.toString(), {
     method: 'GET',
     headers: {
       Accept: 'application/json',

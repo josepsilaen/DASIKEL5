@@ -1,5 +1,5 @@
 import React from 'react';
-import { Filter, RotateCcw, Building2, MapPin, Calendar, UserCheck } from 'lucide-react';
+import { Filter, RotateCcw, Building2, MapPin, Calendar, UserCheck, Activity } from 'lucide-react';
 import type { FilterOptions, VisualizationFilterRequest } from '../../types/visualization';
 
 interface VisualizationFilterBarProps {
@@ -28,7 +28,8 @@ export const VisualizationFilterBar: React.FC<VisualizationFilterBarProps> = ({
     currentFilter.kecamatan ||
     currentFilter.puskesmas ||
     currentFilter.jenis_kelamin ||
-    currentFilter.age_group
+    currentFilter.age_group ||
+    currentFilter.status_stunting
   );
 
   const handleReset = () => {
@@ -38,6 +39,7 @@ export const VisualizationFilterBar: React.FC<VisualizationFilterBarProps> = ({
       puskesmas: null,
       jenis_kelamin: null,
       age_group: null,
+      status_stunting: null,
     });
   };
 
@@ -93,7 +95,7 @@ export const VisualizationFilterBar: React.FC<VisualizationFilterBarProps> = ({
       </div>
 
       {/* Filter Controls Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 lg:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 lg:gap-4">
         {/* 1. Filter Kecamatan */}
         {hasKecamatan && (
           <div className="space-y-1">
@@ -214,6 +216,29 @@ export const VisualizationFilterBar: React.FC<VisualizationFilterBarProps> = ({
             </select>
           </div>
         )}
+
+        {/* 5. Filter Status Stunting */}
+        <div className="space-y-1">
+          <label className="flex items-center gap-1.5 text-[12px] font-semibold text-slate-700">
+            <Activity className="w-3.5 h-3.5 text-slate-400" />
+            <span>Status Stunting</span>
+          </label>
+          <select
+            value={currentFilter.status_stunting || ''}
+            onChange={(e) =>
+              onFilterChange({
+                ...currentFilter,
+                status_stunting: e.target.value || null,
+              })
+            }
+            disabled={isLoading}
+            className="w-full text-[13px] font-medium bg-slate-50/70 border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all shadow-2xs"
+          >
+            <option value="">Semua Status</option>
+            <option value="Stunting">Stunting (Pendek / Sangat Pendek)</option>
+            <option value="Tidak Stunting">Tidak Stunting (Normal / Tinggi)</option>
+          </select>
+        </div>
       </div>
     </div>
   );
