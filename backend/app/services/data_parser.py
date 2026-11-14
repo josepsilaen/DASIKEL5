@@ -1,8 +1,3 @@
-"""
-Layanan pemrosesan, parsing, validasi kualitas data, dan deteksi PII
-untuk file dataset balita (CSV dan Excel .xlsx).
-Mematuhi prinsip keamanan: TIDAK mencatat data identitas pribadi ke log.
-"""
 import csv
 import io
 import logging
@@ -280,6 +275,44 @@ STANDARD_COLUMNS: List[StandardColumnDefinition] = [
         aliases=["status lila", "kategori lila", "status_lila", "status kek", "status gizi ibu"],
     ),
 ]
+
+# Perluasan kamus standar. Setiap variabel harus bermakna tunggal;
+# jangan gunakan alias LiLA balita untuk LiLA ibu.
+STANDARD_COLUMNS.extend([
+    StandardColumnDefinition(key="status_stunting", label="Status stunting (biner)", description="Target 0/1 atau Tidak Stunting/Stunting", category="clinical", is_required_for_stunting=False, expected_type="string", aliases=["status stunting", "label stunting", "target stunting", "target_stunting"]),
+    StandardColumnDefinition(key="usia_ibu_tahun", label="Usia ibu", description="Usia ibu dalam tahun", category="clinical", is_required_for_stunting=False, expected_type="float", unit="tahun", aliases=["usia ibu", "umur ibu", "usia ibu tahun"]),
+    StandardColumnDefinition(key="lila_balita_cm", label="LiLA balita", description="Lingkar lengan atas BALITA; bukan pengukuran LiLA ibu", category="clinical", is_required_for_stunting=False, expected_type="float", unit="cm", aliases=["lila_cm", "lila balita", "lila balita cm"]),
+    StandardColumnDefinition(key="status_gizi_ibu", label="Status gizi ibu", description="Kategori gizi ibu KEK / Risiko KEK / Normal", category="clinical", is_required_for_stunting=False, expected_type="string", aliases=["status gizi ibu", "gizi ibu", "kategori gizi ibu"]),
+    StandardColumnDefinition(key="asi_eksklusif", label="ASI eksklusif", description="Riwayat ASI eksklusif", category="clinical", is_required_for_stunting=False, expected_type="string", aliases=["asi eksklusif", "asi eksklusif 6 bulan"]),
+    StandardColumnDefinition(key="kunjungan_posyandu_3bln", label="Kunjungan Posyandu 3 bulan", description="Jumlah kunjungan (0-3); bukan nama posyandu", category="clinical", is_required_for_stunting=False, expected_type="integer", aliases=["kunjungan posyandu 3bln", "kunjungan posyandu 3 bulan", "frekuensi posyandu 3 bulan"]),
+    StandardColumnDefinition(key="sanitasi_layak", label="Sanitasi layak", description="Kategori akses sanitasi layak", category="clinical", is_required_for_stunting=False, expected_type="string", aliases=["sanitasi", "sanitasi layak"]),
+    StandardColumnDefinition(key="riwayat_diare_3bln", label="Riwayat diare 3 bulan", description="Riwayat diare pada 3 bulan terakhir", category="clinical", is_required_for_stunting=False, expected_type="string", aliases=["riwayat diare", "riwayat diare 3bln", "diare 3 bulan"]),
+    StandardColumnDefinition(key="akses_air_bersih", label="Akses air bersih", description="Kategori akses air bersih", category="clinical", is_required_for_stunting=False, expected_type="string", aliases=["air bersih", "akses air bersih"]),
+    StandardColumnDefinition(key="pendidikan_ibu", label="Pendidikan ibu", description="Pendidikan terakhir ibu", category="clinical", is_required_for_stunting=False, expected_type="string", aliases=["pendidikan ibu"]),
+    StandardColumnDefinition(key="imunisasi_sesuai_usia", label="Imunisasi sesuai usia", description="Status imunisasi balita", category="clinical", is_required_for_stunting=False, expected_type="string", aliases=["imunisasi sesuai usia"]),
+    StandardColumnDefinition(key="kelompok_usia", label="Kelompok usia", description="Rentang usia balita dalam bulan", category="administrative", is_required_for_stunting=False, expected_type="string", aliases=["kelompok usia"]),
+    StandardColumnDefinition(key="provinsi", label="Provinsi", description="Provinsi", category="administrative", is_required_for_stunting=False, expected_type="string", aliases=["provinsi"]),
+    StandardColumnDefinition(key="kabupaten", label="Kabupaten", description="Kabupaten", category="administrative", is_required_for_stunting=False, expected_type="string", aliases=["kabupaten"]),
+    StandardColumnDefinition(key="record_id", label="ID rekaman", description="ID anonim; jangan gunakan sebagai fitur prediksi", category="administrative", is_required_for_stunting=False, expected_type="string", aliases=["record id", "id pengukuran"]),
+])
+
+# Pembersihan alias lama yang bisa menyebabkan collision.
+for _std in STANDARD_COLUMNS:
+    if _std.key == "status_tb_u":
+        _std.aliases = [a for a in _std.aliases if a != "status stunting"]
+    elif _std.key == "lila_ibu":
+        _std.aliases = [a for a in _std.aliases if a not in {"lila", "lila (cm)", "lila_cm", "lila cm", "lingkar lengan atas", "lingkar lengan"}]
+    elif _std.key == "status_lila":
+        _std.aliases = [a for a in _std.aliases if a != "status gizi ibu"]
+    elif _std.key == "kehadiran_posyandu":
+        _std.aliases = [a for a in _std.aliases if a != "kunjungan posyandu"]
+    elif _std.key == "zscore_tb_u":
+        _std.aliases.extend(["zs_tb_u", "zs tb u", "zscore_tb_u"])
+    elif _std.key == "status_naik_berat_badan":
+        _std.aliases.extend(["kenaikan_bb_3bln", "naik_bb"])
+
+# Dataset 715 baris memakai nama kolom ini. Kunci yang tidak sama dengan nama
+# sumber akan disarankan melalui alias, BUKAN fuzzy substring yang berisiko.
 
 logger = logging.getLogger("stunting_toba.pii")
 
@@ -665,6 +698,21 @@ def find_suggested_mapping(col_name: str) -> Tuple[Optional[str], float]:
 
     compact_col = re.sub(r"[^a-z0-9]", "", raw_lower)
     col_tokens = set(norm_col.split())
+
+    # Prioritas tertinggi: nama kolom dan alias PERSIS, bukan kemiripan substring.
+    # Menghindari usia ibu dianggap usia balita, kunjungan dianggap nama fasilitas,
+    # dan status biner dianggap kategori TB/U.
+    for std in STANDARD_COLUMNS:
+        if norm_col == normalize_text(std.key):
+            return std.key, 1.0
+    for std in STANDARD_COLUMNS:
+        if any(norm_col == normalize_text(alias) for alias in std.aliases):
+            return std.key, 0.95
+
+    # Fuzzy tidak aman untuk variabel dengan arti yang mudah tertukar.
+    semantic_guard = {"ibu", "lila", "posyandu", "imunisasi", "stunting", "kek", "kelompok", "diare", "asi", "sanitasi", "air"}
+    if semantic_guard.intersection(col_tokens):
+        return None, 0.0
 
     # --- PENGAMAN DAN DISAMBIGUASI SEMANTIK (COLLISION GUARDS) ---
     # Membedakan: berat badan vs berat lahir vs BBLR vs tinggi badan vs panjang lahir
@@ -1563,3 +1611,32 @@ def validate_custom_mapping(
         readiness_message=readiness_message,
         issues=issues,
     )
+
+
+def validate_mapping_against_headers(column_mapping: Dict[str, str], headers: List[str]) -> ValidateMappingResponse:
+    """Validasi keras. Kolom sumber wajib ada; target tidak boleh ganda.
+
+    Kesiapan antropometri mengikuti validator lama, tetapi pemeriksaan sumber
+    dan collision adalah prasyarat sebelum mapping diterapkan ke dataset aktif.
+    """
+    result = validate_custom_mapping(column_mapping)
+    allowed = {std.key for std in STANDARD_COLUMNS}
+    violations = []
+    seen_targets = set()
+    sensitive_alias = {"lila_cm": "lila_balita_cm", "status_stunting": "status_stunting", "kunjungan_posyandu_3bln": "kunjungan_posyandu_3bln", "usia_ibu_tahun": "usia_ibu_tahun"}
+    for source, target in column_mapping.items():
+        if source not in headers:
+            violations.append(f"Kolom sumber '{source}' tidak ditemukan dalam dataset.")
+        if target not in allowed:
+            violations.append(f"Kunci standar '{target}' tidak dikenali.")
+        if target in seen_targets:
+            violations.append(f"Target '{target}' dipetakan lebih dari sekali.")
+        seen_targets.add(target)
+        if source.strip().lower() in sensitive_alias and target != sensitive_alias[source.strip().lower()]:
+            violations.append(f"Kolom '{source}' tidak dapat dipetakan ke '{target}' karena makna berbeda.")
+    if violations:
+        result.is_valid = False
+        result.readiness_status = "belum_lengkap"
+        result.readiness_message = "Pemetaan ditolak: " + " ".join(violations)
+        result.issues.extend(QualityIssue(issue_type="invalid_mapping", severity="error", message=v) for v in violations)
+    return result

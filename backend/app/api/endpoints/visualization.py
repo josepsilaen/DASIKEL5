@@ -1,15 +1,11 @@
-"""
-Router API untuk Fitur Visualisasi Data Balita (Stage 4.1).
-Menyediakan kalkulasi statistik deskriptif, distribusi status gizi (TB/U),
-komposisi jenis kelamin, distribusi per wilayah, dan integrasi filter interaktif.
-"""
 from typing import Optional
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, HTTPException
 from app.schemas.visualization import (
     VisualizationFilterRequest,
     VisualizationResponse,
 )
-from app.services.dataset_store import compute_visualization
+from app.services.dataset_store import compute_visualization, get_active_dataset
+from app.services.data_parser import validate_mapping_against_headers
 
 router = APIRouter(prefix="/visualization", tags=["Visualisasi Data Balita"])
 
@@ -53,4 +49,11 @@ def get_visualization_data(
     description="Menerima request filter dan pemetaan kolom kustom, mengembalikan agregasi visualisasi lengkap.",
 )
 def post_visualization_data(request: VisualizationFilterRequest) -> VisualizationResponse:
+    if request.column_mapping is not None:
+        active=get_active_dataset()
+        if not active:
+            raise HTTPException(409, "Belum ada dataset aktif.")
+        validation=validate_mapping_against_headers(request.column_mapping,active["headers"])
+        if not validation.is_valid:
+            raise HTTPException(422, validation.readiness_message)
     return compute_visualization(request)

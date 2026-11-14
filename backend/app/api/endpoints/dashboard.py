@@ -1,7 +1,3 @@
-"""
-Router API untuk Dashboard Utama Stunting Toba.
-Menyediakan endpoint agregasi data aktual berdasarkan dataset balita yang aktif.
-"""
 from typing import Optional
 from fastapi import APIRouter, Query
 from app.schemas.dashboard import DashboardSummaryResponse
@@ -20,7 +16,15 @@ router = APIRouter(prefix="/dashboard", tags=["Dashboard Utama"])
     ),
 )
 def get_dashboard_summary(
-    desa_kelurahan: Optional[str] = Query(None, description="Filter desa aktif untuk interaksi visualisasi Tableau")
+    desa_kelurahan: Optional[str] = Query(None, description="Filter desa"),
+    kecamatan: Optional[str] = Query(None),
+    puskesmas: Optional[str] = Query(None),
+    jenis_kelamin: Optional[str] = Query(None),
+    age_group: Optional[str] = Query(None),
+    status_stunting: Optional[str] = Query(None),
+    periode: Optional[str] = Query(None),
 ) -> DashboardSummaryResponse:
-    return compute_dashboard_summary(desa_filter=desa_kelurahan)
+    return compute_dashboard_summary(desa_filter=desa_kelurahan,
+        kecamatan=kecamatan,puskesmas=puskesmas,jenis_kelamin=jenis_kelamin,
+        age_group=age_group,status_stunting=status_stunting,periode=periode)
 

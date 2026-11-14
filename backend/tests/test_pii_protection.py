@@ -1,13 +1,3 @@
-"""
-Unit test komprehensif untuk penguatan deteksi dan perlindungan PII
-(Personally Identifiable Information) pada modul Manajemen Data Balita:
-- Variasi nama kolom identitas (NIK, Nama, Alamat, Kontak/HP/WA, KK)
-- Normalisasi tanda baca, spasi, kapitalisasi, dan underscore
-- Pencegahan false positive (warna, perawatan, tahap, nama posyandu, dsb.)
-- Penandaan kolom mencurigakan (suspicious PII) untuk pemeriksaan manual
-- Penyamaran nilai PII pada pratinjau API dan sampel nilai
-- Larangan pemetaan otomatis kolom PII ke variabel klinis
-"""
 import io
 import csv
 import pytest

@@ -1,8 +1,4 @@
-"""
-Router API untuk Fitur Manajemen Data Balita.
-Menyediakan endpoint unggah & preview dataset, validasi pemetaan kolom,
-serta daftar referensi kolom standar antropometri.
-"""
+
 import os
 from fastapi import APIRouter, UploadFile, File, HTTPException, status
 from typing import List, Optional
@@ -21,6 +17,7 @@ from app.services.data_parser import (
     parse_excel_content,
     inspect_dataset,
     validate_custom_mapping,
+    validate_mapping_against_headers,
 )
 from app.services.dataset_store import (
     set_active_dataset,
@@ -157,6 +154,66 @@ def delete_current_active_dataset():
     description="Mengevaluasi apakah pemetaan kolom yang dipilih pengguna memenuhi syarat analisis stunting.",
 )
 def validate_mapping(request: ValidateMappingRequest) -> ValidateMappingResponse:
-    # Perbarui pemetaan pada dataset aktif
-    update_active_mapping(request.column_mapping)
-    return validate_custom_mapping(request.column_mapping)
+    active = get_active_dataset()
+    if not active:
+        raise HTTPException(status_code=409, detail="Unggah dataset terlebih dahulu sebelum validasi pemetaan.")
+    result = validate_mapping_against_headers(request.column_mapping, active["headers"])
+    if not result.is_valid and any(issue.issue_type == "invalid_mapping" for issue in result.issues):
+        raise HTTPException(status_code=422, detail=result.readiness_message)
+    if result.is_valid:
+        # Baru simpan setelah lolos validasi lengkap.
+        update_active_mapping(request.column_mapping)
+        active["mapping_validated"] = True
+    return result
+
+
+
+@router.get(
+    "/current-mapping",
+    summary="Ambil status mapping dataset aktif"
+)
+def get_current_mapping():
+    active = get_active_dataset()
+
+    if not active:
+        raise HTTPException(
+            status_code=409,
+            detail="Belum ada dataset aktif."
+        )
+
+    mapping = dict(
+        active.get("column_mapping") or {}
+    )
+
+    valid = bool(
+        active.get("mapping_validated", False)
+    )
+
+    # Jika mapping belum pernah divalidasi
+    if not valid:
+        return {
+            "column_mapping": mapping,
+            "is_validated": False,
+            "validation_result": None,
+        }
+
+    # Periksa kembali mapping yang tersimpan
+    result = validate_mapping_against_headers(
+        mapping,
+        active["headers"]
+    )
+
+    # Jika hasil validasi tidak tersedia atau tidak valid
+    if result is None or not result.is_valid:
+        return {
+            "column_mapping": mapping,
+            "is_validated": False,
+            "validation_result": None,
+        }
+
+    # Mapping valid dan result dipastikan bukan None
+    return {
+        "column_mapping": mapping,
+        "is_validated": True,
+        "validation_result": result.model_dump(),
+    }

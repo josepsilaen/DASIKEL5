@@ -1,7 +1,3 @@
-"""
-Skema Pydantic untuk endpoint Health Check.
-Memastikan validasi tipe data dan dokumentasi OpenAPI yang rapi.
-"""
 from datetime import datetime, timezone
 from pydantic import BaseModel, Field
 

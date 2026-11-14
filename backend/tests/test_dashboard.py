@@ -1,16 +1,3 @@
-"""
-Unit tests untuk endpoint Dashboard Utama Dinamis (/api/dashboard/summary).
-Menguji:
-1. Dashboard tanpa dataset aktif (has_active_dataset=False).
-2. Dashboard dengan dataset aktif (agregasi aktual).
-3. Dataset tanpa kolom TB/U (status stunting aman & bertanda unmapped).
-4. Dataset tanpa kolom wilayah (has_region=False, wilayah=0).
-5. Dataset tanpa tanggal pengukuran (has_date_trend=False, unmapped reason informatif).
-6. Penggantian dataset aktif (data lama ditimpa total oleh data baru).
-7. Penghapusan dataset aktif (DELETE /api/data/active-dataset mengembalikan dashboard ke empty).
-8. Konsistensi ringkasan Dashboard dengan hasil agregasi Visualisasi (total, valid, stunting sejalan).
-9. Pencegahan data sintetis tercampur dengan data aktual (tidak ada angka dummy 1247 atau 1083 saat aktif).
-"""
 import io
 import pytest
 from fastapi.testclient import TestClient
@@ -297,7 +284,7 @@ Anak Lebih Usia,120901003,72,P,18.0,110.0,Laguboti,Normal
 
 def test_13_dashboard_tableau_analytics_and_filter_action():
     """13. Memastikan Dashboard Utama memuat 5 kelompok Tableau secara dinamis dan mendukung filter aksi desa."""
-    csv_content = """Nama Balita,NIK,Usia Saat Ukur,Jenis Kelamin,Berat,Tinggi,Desa/Kel,Pukesmas,TB/U,ZS TB/U,BB Lahir,TB Lahir,Naik BB,Kelas Ibu,LiLA
+    csv_content = """Nama Balita,NIK,Usia Saat Ukur,Jenis Kelamin,Berat,Tinggi,Desa/Kel,Pukesmas,TB/U,ZS TB/U,BB Lahir,TB Lahir,Naik BB,Kelas Ibu,LiLA Ibu
 Anak 1,120901,4,L,5.8,61.0,Lumban,Balige,Normal,-0.40,3.2,49.0,N,Ya,24.5
 Anak 2,120902,8,P,7.5,69.5,Lumban,Balige,Pendek,-2.30,2.2,46.0,T,Tidak,21.0
 Anak 3,120903,15,L,9.0,76.0,Sigumpar,Sigumpar,Normal,-0.80,3.0,48.5,N,Ya,25.0

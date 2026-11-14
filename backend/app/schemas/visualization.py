@@ -1,8 +1,3 @@
-"""
-Skema Pydantic untuk Fitur Visualisasi Data Balita (Stage 4.1).
-Mendukung agregasi statistik deskriptif, distribusi status gizi (TB/U, BB/U, BB/TB),
-komposisi kelompok usia, jenis kelamin, distribusi wilayah, serta analisis Z-Score.
-"""
 from typing import List, Dict, Any, Optional, TYPE_CHECKING
 from pydantic import BaseModel, Field
 

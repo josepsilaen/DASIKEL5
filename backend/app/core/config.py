@@ -1,7 +1,3 @@
-"""
-Konfigurasi dasar aplikasi FastAPI Stunting Toba.
-Menyimpan variabel global seperti nama aplikasi, versi, dan konfigurasi CORS.
-"""
 from typing import List
 
 
