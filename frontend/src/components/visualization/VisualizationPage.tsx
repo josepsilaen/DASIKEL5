@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useGlobalFilters } from '../../state/globalFilters';
 import { PageHeader } from '../dashboard/PageHeader';
 import { VisualizationEmptyState } from './VisualizationEmptyState';
 import { VisualizationFilterBar } from './VisualizationFilterBar';
@@ -28,55 +29,122 @@ export const VisualizationPage: React.FC<VisualizationPageProps> = ({ onNavigate
   const [selectedDesa, setSelectedDesa] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'tableau' | 'antropometri'>('tableau');
 
-  const [currentFilter, setCurrentFilter] = useState<VisualizationFilterRequest>({
-    kecamatan: null,
+  const {
+    filters: shared,
+    setFilters: setShared,
+  } = useGlobalFilters();
+
+  const [regional, setRegional] = useState<{
+    puskesmas: string | null;
+    desa_kelurahan: string | null;
+    region_type: 'kecamatan' | 'puskesmas' | 'desa_kelurahan';
+  }>({
     puskesmas: null,
     desa_kelurahan: null,
-    jenis_kelamin: null,
-    age_group: null,
-    status_stunting: null,
     region_type: 'puskesmas',
   });
 
-  const loadData = useCallback(async (filterReq: VisualizationFilterRequest) => {
-    setIsLoading(true);
-    setErrorMessage(null);
-    try {
-      const res = await fetchVisualizationData(filterReq);
-      setData(res);
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setErrorMessage(err.message);
-      } else {
-        setErrorMessage('Terjadi kesalahan tidak terduga saat memuat data visualisasi.');
+  const currentFilter = useMemo<VisualizationFilterRequest>(
+    () => ({ ...shared, ...regional }),
+    [shared, regional]
+  );
+
+  const latestRequest = useRef(0);
+
+  // Hapus filter wilayah turunan saat kecamatan berubah.
+  useEffect(() => {
+    setRegional((previous) =>
+      previous.puskesmas || previous.desa_kelurahan
+        ? {
+            ...previous,
+            puskesmas: null,
+            desa_kelurahan: null,
+          }
+        : previous
+    );
+
+    setSelectedDesa(null);
+  }, [shared.kecamatan]);
+
+  const loadData = useCallback(
+    async (filterReq: VisualizationFilterRequest) => {
+      const requestId = ++latestRequest.current;
+
+      setIsLoading(true);
+      setErrorMessage(null);
+
+      try {
+        const response = await fetchVisualizationData(filterReq);
+
+        // Abaikan respons dari filter lama.
+        if (requestId === latestRequest.current) {
+          setData(response);
+        }
+      } catch (err: unknown) {
+        if (requestId === latestRequest.current) {
+          setErrorMessage(
+            err instanceof Error
+              ? err.message
+              : 'Gagal memuat visualisasi.'
+          );
+        }
+      } finally {
+        if (requestId === latestRequest.current) {
+          setIsLoading(false);
+        }
       }
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+    },
+    []
+  );
 
   // Inisialisasi awal saat halaman dibuka
   useEffect(() => {
     loadData(currentFilter);
   }, [loadData, currentFilter]);
 
-  const handleFilterChange = (newFilter: VisualizationFilterRequest) => {
-    setCurrentFilter(newFilter);
+  const handleFilterChange = (
+    newFilter: VisualizationFilterRequest
+  ) => {
+    setShared({
+      kecamatan: newFilter.kecamatan ?? null,
+      jenis_kelamin: newFilter.jenis_kelamin ?? null,
+      age_group: newFilter.age_group ?? null,
+      periode: newFilter.periode ?? null,
+      status_stunting: newFilter.status_stunting ?? null,
+    });
+
+    setRegional({
+      puskesmas: newFilter.puskesmas ?? null,
+      desa_kelurahan: newFilter.desa_kelurahan ?? null,
+      region_type: newFilter.region_type ?? 'puskesmas',
+    });
+
+    setSelectedDesa(newFilter.desa_kelurahan ?? null);
   };
 
-  const handleRegionTypeChange = (regionType: 'kecamatan' | 'puskesmas' | 'desa_kelurahan') => {
-    const updated = { ...currentFilter, region_type: regionType };
-    setCurrentFilter(updated);
+  const handleRegionTypeChange = (
+    regionType: 'kecamatan' | 'puskesmas' | 'desa_kelurahan'
+  ) => {
+    setRegional((previous) => ({
+      ...previous,
+      region_type: regionType,
+    }));
   };
 
   const handleDesaSelect = (desa: string) => {
     setSelectedDesa(desa);
-    setCurrentFilter(prev => ({ ...prev, desa_kelurahan: desa }));
+    setRegional((previous) => ({
+      ...previous,
+      desa_kelurahan: desa,
+    }));
   };
 
   const handleDesaReset = () => {
     setSelectedDesa(null);
-    setCurrentFilter(prev => ({ ...prev, desa_kelurahan: null }));
+    setRegional((previous) => ({
+      ...previous,
+      desa_kelurahan: null,
+    }));
   };
 
   const stuntedCount = data?.status_tbu_distribution
@@ -254,6 +322,7 @@ export const VisualizationPage: React.FC<VisualizationPageProps> = ({ onNavigate
               onSelectDesa={handleDesaSelect}
               onResetDesa={handleDesaReset}
               onGoToDataBalita={() => onNavigate('data-balita')}
+              statusFilter={currentFilter.status_stunting}
             />
           )}
 

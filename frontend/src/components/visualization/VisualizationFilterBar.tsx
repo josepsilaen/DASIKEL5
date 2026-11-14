@@ -24,12 +24,22 @@ export const VisualizationFilterBar: React.FC<VisualizationFilterBarProps> = ({
   const hasGender = filterOptions.jenis_kelamin_list && filterOptions.jenis_kelamin_list.length > 0;
   const hasAgeGroup = filterOptions.age_group_list && filterOptions.age_group_list.length > 0;
 
+  const months = Array.from(
+    new Set(
+      (filterOptions.periode_list ?? [])
+        .map((item) => item.trim().slice(0, 7))
+        .filter((item) => /^\\d{4}-\\d{2}$/.test(item))
+    )
+  ).sort();
+
   const isAnyFilterActive = Boolean(
     currentFilter.kecamatan ||
     currentFilter.puskesmas ||
     currentFilter.jenis_kelamin ||
     currentFilter.age_group ||
-    currentFilter.status_stunting
+    currentFilter.status_stunting ||
+    currentFilter.periode ||
+    currentFilter.desa_kelurahan
   );
 
   const handleReset = () => {
@@ -37,6 +47,8 @@ export const VisualizationFilterBar: React.FC<VisualizationFilterBarProps> = ({
       ...currentFilter,
       kecamatan: null,
       puskesmas: null,
+      desa_kelurahan: null,
+      periode: null,
       jenis_kelamin: null,
       age_group: null,
       status_stunting: null,
@@ -95,7 +107,7 @@ export const VisualizationFilterBar: React.FC<VisualizationFilterBarProps> = ({
       </div>
 
       {/* Filter Controls Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 lg:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3.5 lg:gap-4">
         {/* 1. Filter Kecamatan */}
         {hasKecamatan && (
           <div className="space-y-1">
@@ -109,6 +121,8 @@ export const VisualizationFilterBar: React.FC<VisualizationFilterBarProps> = ({
                 onFilterChange({
                   ...currentFilter,
                   kecamatan: e.target.value || null,
+                  puskesmas: null,
+                  desa_kelurahan: null,
                 })
               }
               disabled={isLoading}
@@ -137,6 +151,7 @@ export const VisualizationFilterBar: React.FC<VisualizationFilterBarProps> = ({
                 onFilterChange({
                   ...currentFilter,
                   puskesmas: e.target.value || null,
+                  desa_kelurahan: null,
                 })
               }
               disabled={isLoading}
@@ -216,6 +231,33 @@ export const VisualizationFilterBar: React.FC<VisualizationFilterBarProps> = ({
             </select>
           </div>
         )}
+
+        {/* Filter Periode Bulanan */}
+        <div className="space-y-1">
+          <label className="flex items-center gap-1.5 text-[12px] font-semibold text-slate-700">
+            <Calendar className="w-3.5 h-3.5 text-slate-400" />
+            <span>Periode Pengukuran</span>
+          </label>
+
+          <select
+            value={currentFilter.periode || ''}
+            onChange={(event) =>
+              onFilterChange({
+                ...currentFilter,
+                periode: event.target.value || null,
+              })
+            }
+            disabled={isLoading}
+            className="w-full text-[13px] font-medium bg-slate-50/70 border border-slate-300 rounded-lg px-3 py-2 text-slate-800"
+          >
+            <option value="">Semua Periode</option>
+            {months.map((month) => (
+              <option key={month} value={month}>
+                {month}
+              </option>
+            ))}
+          </select>
+        </div>
 
         {/* 5. Filter Status Stunting */}
         <div className="space-y-1">

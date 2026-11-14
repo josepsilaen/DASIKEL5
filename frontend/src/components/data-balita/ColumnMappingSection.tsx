@@ -216,7 +216,7 @@ export const ColumnMappingSection: React.FC<ColumnMappingSectionProps> = ({
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-2">
                       <select
-                        value={currentTargetKey}
+                        value={currentTargetKey || '__unmapped__'}
                         onChange={(e) => handleSelectChange(col.name, e.target.value)}
                         className={`w-full max-w-xs sm:max-w-sm text-[12.5px] sm:text-[13px] rounded-lg border px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-teal-500/20 transition-all ${
                           matchedStandard?.is_required_for_stunting
