@@ -1,27 +1,39 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useCallback, useEffect, useState } from 'react';
+import { BarChart3, RefreshCw, Upload } from 'lucide-react';
+
 import { PageHeader } from '../dashboard/PageHeader';
 import { FileUploadZone } from './FileUploadZone';
 import { ValidationSummaryCards } from './ValidationSummaryCards';
 import { QualityIssuesPanel } from './QualityIssuesPanel';
 import { ColumnMappingSection } from './ColumnMappingSection';
 import { DatasetPreviewTable } from './DatasetPreviewTable';
+import { ETLWorkflowSection } from './ETLWorkflowSection';
 
 import {
+  getActiveDataset,
+  getStandardColumns,
   uploadDatasetPreview,
   validateColumnMapping,
-  getStandardColumns,
-  getActiveDataset,
 } from '../../services/api';
+import { getActiveMapping } from '../../services/dataPipeline';
 import type {
   DatasetPreviewResponse,
   StandardColumnDefinition,
   ValidateMappingResponse,
 } from '../../types/dataManagement';
 import { createSyntheticSampleFile } from '../../data/syntheticSample';
-import { Upload, BarChart3 } from 'lucide-react';
 
 interface DataBalitaPageProps {
   onNavigateToVisualisasi?: () => void;
+}
+
+function suggestMapping(data: DatasetPreviewResponse): Record<string, string> {
+  const suggested: Record<string, string> = {};
+  data.columns.forEach((column) => {
+    if (column.suggested_mapping) suggested[column.name] = column.suggested_mapping;
+  });
+  return suggested;
 }
 
 export const DataBalitaPage: React.FC<DataBalitaPageProps> = ({ onNavigateToVisualisasi }) => {
@@ -30,219 +42,214 @@ export const DataBalitaPage: React.FC<DataBalitaPageProps> = ({ onNavigateToVisu
   const [columnMapping, setColumnMapping] = useState<Record<string, string>>({});
   const [savedMapping, setSavedMapping] = useState<Record<string, string>>({});
   const [validationResult, setValidationResult] = useState<ValidateMappingResponse | null>(null);
-
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [isValidating, setIsValidating] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isValidating, setIsValidating] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [datasetRevision, setDatasetRevision] = useState(0);
+  const [pipelineStatus, setPipelineStatus] = useState({ etl: false, warehouse: false });
 
-  // Periksa apakah terdapat perubahan pemetaan yang belum disimpan/divalidasi
-  const hasUnsavedMapping = Boolean(
-    dataset &&
-    (Object.keys(columnMapping).length !== Object.keys(savedMapping).length ||
-      Object.keys(columnMapping).some((k) => columnMapping[k] !== savedMapping[k]))
-  );
+  const hasUnsavedMapping = Boolean(dataset && (
+    Object.keys(columnMapping).length !== Object.keys(savedMapping).length ||
+    Object.keys(columnMapping).some((source) => columnMapping[source] !== savedMapping[source])
+  ));
+  const mappingValidated = Boolean(validationResult?.is_valid) && !hasUnsavedMapping;
 
-  // Ambil referensi kolom standar dan dataset aktif saat inisialisasi
-  useEffect(() => {
-    getStandardColumns()
-      .then((cols) => setStandardColumns(cols))
-      .catch((err) => console.warn('Gagal memuat definisi kolom standar:', err));
-
-    getActiveDataset()
-      .then((active) => {
-        if (active) {
-          setDataset(active);
-        }
-      })
-      .catch((err) => console.warn('Gagal memuat dataset aktif:', err));
+  const handlePipelineStatus = useCallback((status: { etl: boolean; warehouse: boolean }) => {
+    setPipelineStatus((old) =>
+      old.etl === status.etl && old.warehouse === status.warehouse ? old : status
+    );
   }, []);
 
-  // Saat dataset berhasil dimuat, set inisial mapping dari saran otomatis backend
+  // Pulihkan dataset dan pemetaan yang sebelumnya tersimpan di backend.
   useEffect(() => {
-    if (dataset) {
-      const initialMap: Record<string, string> = {};
-      dataset.columns.forEach((col) => {
-        if (col.suggested_mapping) {
-          initialMap[col.name] = col.suggested_mapping;
+    let cancelled = false;
+    async function initialize() {
+      try {
+        const [standard, active] = await Promise.all([
+          getStandardColumns(), getActiveDataset(),
+        ]);
+        if (cancelled) return;
+        setStandardColumns(standard);
+        if (active) {
+          setDataset(active);
+          const suggested = suggestMapping(active);
+          try {
+            const stored = await getActiveMapping();
+            if (cancelled) return;
+            const restored = stored.column_mapping || suggested;
+            setColumnMapping(restored);
+            setSavedMapping(restored);
+            setValidationResult(
+              stored.is_validated ? stored.validation_result : null
+            );
+          } catch {
+            if (cancelled) return;
+            setColumnMapping(suggested);
+            setSavedMapping(suggested);
+            setValidationResult(null);
+          }
         }
-      });
-      setColumnMapping(initialMap);
-      setSavedMapping(initialMap);
-      setValidationResult(null);
+      } catch (err: unknown) {
+        if (!cancelled) {
+          setErrorMessage(err instanceof Error ? err.message : 'Gagal memuat data.');
+        }
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
     }
-  }, [dataset]);
+    void initialize();
+    return () => { cancelled = true; };
+  }, []);
 
-  const handleFileUpload = async (file: File) => {
+  async function handleFileUpload(file: File) {
     setIsLoading(true);
     setErrorMessage(null);
-
     try {
       const result = await uploadDatasetPreview(file);
+      const mapping = suggestMapping(result);
       setDataset(result);
+      setColumnMapping(mapping);
+      setSavedMapping(mapping);
+      setValidationResult(null);
+      setPipelineStatus({ etl: false, warehouse: false });
+      setDatasetRevision((current) => current + 1);
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        setErrorMessage(err.message);
-      } else {
-        setErrorMessage('Terjadi kesalahan tidak terduga saat memproses file.');
-      }
+      setErrorMessage(err instanceof Error ? err.message : 'Gagal mengunggah berkas.');
     } finally {
       setIsLoading(false);
     }
-  };
+  }
 
-  const handleLoadSyntheticSample = async () => {
-    const sampleFile = createSyntheticSampleFile();
-    await handleFileUpload(sampleFile);
-  };
-
-  const handleValidateMapping = async (
-    mappingToValidate: Record<string, string>
-  ): Promise<ValidateMappingResponse> => {
+  async function handleValidateMapping(mapping: Record<string, string>) {
     setIsValidating(true);
     try {
-      const res = await validateColumnMapping(mappingToValidate);
-      setValidationResult(res);
-
-      // Hanya perbarui savedMapping jika lolos validasi (tidak auto-save mapping tidak valid)
-      if (res.is_valid) {
-        setSavedMapping({ ...mappingToValidate });
+      const result = await validateColumnMapping(mapping);
+      setValidationResult(result);
+      if (result.is_valid) {
+        setSavedMapping({ ...mapping });
       }
-
-      // Sinkronkan status kesiapan pada dataset
       if (dataset) {
         setDataset({
           ...dataset,
-          readiness_status: res.readiness_status,
-          readiness_message: res.readiness_message,
+          readiness_status: result.readiness_status,
+          readiness_message: result.readiness_message,
         });
       }
-      return res;
-    } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Gagal memvalidasi pemetaan kolom.');
-      throw err;
+      return result;
     } finally {
       setIsValidating(false);
     }
-  };
+  }
+
+  async function handleETLApplied() {
+    const active = await getActiveDataset();
+    if (!active) throw new Error('Dataset aktif tidak ditemukan setelah ETL.');
+    setDataset(active);
+  }
+
+  function handleMappingChange(mapping: Record<string, string>) {
+    setColumnMapping(mapping);
+    setValidationResult(null);
+    setPipelineStatus({ etl: pipelineStatus.etl, warehouse: false });
+  }
+
+  function changeFile() {
+    setDataset(null);
+    setColumnMapping({});
+    setSavedMapping({});
+    setValidationResult(null);
+    setPipelineStatus({ etl: false, warehouse: false });
+    setErrorMessage(null);
+  }
+
+  const steps = [
+    { label: '1. Unggah', done: Boolean(dataset) },
+    { label: '2. Pemetaan', done: Object.keys(columnMapping).length > 0 },
+    { label: '3. Validasi', done: mappingValidated },
+    { label: '4. ETL', done: pipelineStatus.etl },
+    { label: '5. Warehouse & Ekspor', done: pipelineStatus.warehouse },
+  ];
 
   return (
-    <div className="space-y-6 animate-fadeIn">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-5 animate-fadeIn">
+      <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
         <PageHeader
-          title="Manajemen Data Balita"
-          description="Unggah, pratinjau, dan validasi kelengkapan data antropometri balita Kabupaten Toba untuk dasar analisis stunting."
+          title="Manajemen Data & ETL"
+          description="Unggah dataset, periksa kualitas, petakan kolom, jalankan ETL, bangun warehouse, dan ekspor CSV terdeidentifikasi."
         />
-
         {dataset && (
-          <div className="flex items-center gap-2.5 self-start sm:self-auto flex-wrap">
+          <div className="flex flex-wrap gap-2">
             {onNavigateToVisualisasi && (
-              <div className="flex items-center gap-2">
-                {hasUnsavedMapping && (
-                  <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11.5px] font-semibold bg-amber-50 text-amber-800 border border-amber-300">
-                    Pemetaan belum disimpan
-                  </span>
-                )}
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (hasUnsavedMapping) {
-                      alert(
-                        'Terdapat perubahan pemetaan kolom yang belum divalidasi & disimpan. Silakan klik "Validasi & Simpan Pemetaan" pada bagian Pemetaan Kolom terlebih dahulu.'
-                      );
-                      return;
-                    }
-                    onNavigateToVisualisasi();
-                  }}
-                  disabled={hasUnsavedMapping}
-                  className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-white text-[13px] font-semibold transition-all shadow-2xs whitespace-nowrap ${
-                    hasUnsavedMapping
-                      ? 'bg-slate-400 cursor-not-allowed opacity-60'
-                      : 'bg-teal-600 hover:bg-teal-700 cursor-pointer'
-                  }`}
-                  title={
-                    hasUnsavedMapping
-                      ? 'Simpan dan validasi pemetaan kolom terlebih dahulu sebelum membuka visualisasi'
-                      : 'Buka Visualisasi Data Balita'
-                  }
-                >
-                  <BarChart3 className="w-4 h-4" />
-                  Buka Visualisasi Data
-                </button>
-              </div>
+              <button type="button" onClick={onNavigateToVisualisasi} disabled={!mappingValidated}
+                className="inline-flex items-center gap-2 rounded-lg bg-teal-600 px-3 py-2 text-xs font-semibold text-white hover:bg-teal-700 disabled:opacity-40">
+                <BarChart3 className="h-4 w-4" />Lihat Visualisasi
+              </button>
             )}
-            <button
-              type="button"
-              onClick={() => {
-                setDataset(null);
-                setErrorMessage(null);
-              }}
-              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-[13px] font-medium transition-colors shadow-2xs whitespace-nowrap"
-            >
-              <Upload className="w-4 h-4 text-slate-500" />
-              Unggah Berkas Lain
+            <button type="button" onClick={changeFile}
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+              <Upload className="h-4 w-4" />Ganti Berkas
             </button>
           </div>
         )}
       </div>
 
-      {/* Bagian 1: Upload File Area (Tampil jika belum ada dataset aktif) */}
+      <div className="grid grid-cols-2 gap-1.5 md:grid-cols-5">
+        {steps.map((step) => (
+          <div key={step.label}
+            className={`rounded-md border px-2 py-2 text-[11px] font-semibold ${step.done ? 'border-teal-200 bg-teal-50 text-teal-800' : 'border-slate-200 bg-white text-slate-500'}`}>
+            {step.label}
+          </div>
+        ))}
+      </div>
+
+      {isLoading && (
+        <div className="flex items-center gap-2 rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
+          <RefreshCw className="h-3.5 w-3.5 animate-spin" />Memuat data…
+        </div>
+      )}
+      {errorMessage && (
+        <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">
+          {errorMessage}
+        </div>
+      )}
+
       {!dataset ? (
-        <div className="space-y-6">
+        !isLoading && (
           <FileUploadZone
-            onFileUpload={handleFileUpload}
-            onLoadSyntheticSample={handleLoadSyntheticSample}
+            onFileUpload={(file) => { void handleFileUpload(file); }}
+            onLoadSyntheticSample={() => { void handleFileUpload(createSyntheticSampleFile()); }}
             isLoading={isLoading}
             errorMessage={errorMessage}
             onClearError={() => setErrorMessage(null)}
           />
-
-          {/* Panduan Kriteria Berkas */}
-          <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-3 shadow-2xs">
-            <h4 className="text-[15px] font-bold text-slate-800">
-              Ketentuan & Variabel Data Balita
-            </h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-[12.5px] sm:text-[13px] text-slate-600">
-              <div className="p-3.5 rounded-lg bg-slate-50 border border-slate-200/70">
-                <span className="font-bold text-teal-800 block mb-1 text-[13px]">Variabel Wajib Inti:</span>
-                Usia Saat Ukur (bulan), Jenis Kelamin (L/P), Berat Badan (kg), Tinggi Badan (cm).
-              </div>
-              <div className="p-3.5 rounded-lg bg-slate-50 border border-slate-200/70">
-                <span className="font-bold text-blue-800 block mb-1 text-[13px]">Variabel Wilayah:</span>
-                Puskesmas, Desa/Kelurahan, Posyandu untuk pemetaan sebaran kasus stunting Kabupaten Toba.
-              </div>
-              <div className="p-3.5 rounded-lg bg-slate-50 border border-slate-200/70">
-                <span className="font-bold text-purple-800 block mb-1 text-[13px]">Keamanan & Privasi:</span>
-                Data identitas pribadi (NIK, Nama Lengkap, Alamat) disamarkan otomatis pada pratinjau.
-              </div>
-            </div>
-          </div>
-        </div>
+        )
       ) : (
-        /* Bagian 2: Hasil Pemeriksaan Dataset Lengkap */
-        <div className="space-y-6">
-          {/* Ringkasan Statistik File */}
+        <div className="space-y-4">
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-800">
+            <strong>Dataset aktif:</strong> {dataset.filename} — {dataset.total_rows.toLocaleString('id-ID')} baris.
+            Dataset tersimpan sementara di memori FastAPI dan dapat hilang ketika backend restart.
+          </div>
           <ValidationSummaryCards data={dataset} />
-
-          {/* Panel Temuan Kualitas Data */}
           <QualityIssuesPanel
             issues={dataset.quality_issues}
             identicalDuplicates={dataset.identical_duplicates_count}
           />
-
-          {/* Pemetaan Kolom Fleksibel */}
           <ColumnMappingSection
             columns={dataset.columns}
-            standardColumns={standardColumns.length > 0 ? standardColumns : dataset.standard_columns}
+            standardColumns={standardColumns.length ? standardColumns : dataset.standard_columns}
             currentMapping={columnMapping}
-            onMappingChange={setColumnMapping}
+            onMappingChange={handleMappingChange}
             onValidateMapping={handleValidateMapping}
             isValidating={isValidating}
             validationResult={validationResult}
             hasUnsavedChanges={hasUnsavedMapping}
           />
-
-          {/* Tabel Pratinjau Data */}
+          <ETLWorkflowSection
+            key={datasetRevision}
+            mappingValidated={mappingValidated}
+            onETLApplied={handleETLApplied}
+            onStatusChange={handlePipelineStatus}
+          />
           <DatasetPreviewTable
             columns={dataset.columns}
             rows={dataset.preview_rows}

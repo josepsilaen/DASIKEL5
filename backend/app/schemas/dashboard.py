@@ -1,8 +1,3 @@
-"""
-Skema Pydantic untuk Dashboard Utama Dinamis Stunting Toba.
-Menyediakan agregasi KPI ringkasan, distribusi indikator antropometri aktual,
-tren pengukuran bulanan, dan pratinjau data balita tersamar dari dataset aktif.
-"""
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
 from app.schemas.visualization import DistributionItem
@@ -80,6 +75,7 @@ class DashboardSummaryResponse(BaseModel):
         description="Pesan penjelas jika determinan faktor risiko belum ada di dataset"
     )
     risk_factors: List[DashboardRiskFactorItem] = Field(default_factory=list, description="Komposisi faktor risiko")
+    kpi: Dict[str, Any] = Field(default_factory=dict, description="Empat KPI sesuai BAB I, masing-masing dengan penyebut eksplisit")
 
     # Kualitas dan Kelengkapan Data
     total_quality_issues: int = Field(default=0, description="Total isu kualitas data teridentifikasi")

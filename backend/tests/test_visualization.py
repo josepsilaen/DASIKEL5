@@ -1,15 +1,3 @@
-"""
-Pengujian endpoint visualisasi data balita (Stage 4.1).
-Memverifikasi:
-- Respon saat dataset belum diunggah (empty state).
-- Agregasi statistik kuantitatif (total, valid, status TB/U, wilayah).
-- Distribusi kategori status gizi (TB/U) dan persentasenya.
-- Distribusi jenis kelamin balita.
-- Distribusi wilayah (puskesmas, desa/kelurahan).
-- Penerapan filter (puskesmas, gender, dll.) yang memutakhirkan seluruh agregasi.
-- Penanganan dataset tanpa kolom status TB/U (pesan informatif tanpa error).
-- Keamanan data (tidak memuat informasi pribadi PII).
-"""
 import io
 import pytest
 from fastapi.testclient import TestClient

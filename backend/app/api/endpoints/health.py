@@ -1,6 +1,3 @@
-"""
-Endpoint pemeriksaan kesehatan (Health Check) backend Stunting Toba.
-"""
 from fastapi import APIRouter
 from app.schemas.health import HealthResponse
 

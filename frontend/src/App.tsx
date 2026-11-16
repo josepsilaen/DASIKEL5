@@ -1,172 +1,323 @@
+
 import { useState, useEffect, useCallback } from 'react';
-import { Sidebar } from './components/layout/Sidebar';
-import { Header } from './components/layout/Header';
-import { PlaceholderView } from './components/layout/PlaceholderView';
+
+// ======================================================
+// 1. DASHBOARD
+// ======================================================
+
+import { DashboardStage3Page } from './components/dashboard/DashboardStage3Page';
 import { PageHeader } from './components/dashboard/PageHeader';
 import { ActiveDatasetBanner } from './components/dashboard/ActiveDatasetBanner';
-import { StatCard } from './components/dashboard/StatCard';
 import { DashboardEmptyState } from './components/dashboard/DashboardEmptyState';
 import { DashboardLoadingSkeleton } from './components/dashboard/DashboardLoadingSkeleton';
 import { DashboardErrorState } from './components/dashboard/DashboardErrorState';
-import { BirthWeightDashboardPage } from './components/dashboard/BirthWeightDashboardPage';
+
+// ======================================================
+// 2. LAYOUT
+// ======================================================
+
+import { Sidebar } from './components/layout/Sidebar';
+import { Header } from './components/layout/Header';
+
+// ======================================================
+// 3. HALAMAN APLIKASI
+// ======================================================
+
 import { DataBalitaPage } from './components/data-balita/DataBalitaPage';
+
 import { VisualizationPage } from './components/visualization/VisualizationPage';
 
-import { checkBackendHealth, fetchDashboardSummary } from './services/api';
+import { RiskFactorPage } from './components/modules/RiskFactorPage';
+
+import {
+  RegionComparisonPage,
+  StuntingTrendPage,
+} from './components/modules/Stage5Pages';
+
+import { MachineLearningPage } from './components/modules/MachineLearningPage';
+
+// ======================================================
+// 4. SERVICES
+// ======================================================
+
+import {
+  checkBackendHealth,
+  fetchDashboardSummary,
+} from './services/api';
+
+// ======================================================
+// 5. TYPES
+// ======================================================
+
 import type { HealthCheckResult } from './types/health';
-import type { PageId } from './types/navigation';
-import { navItems } from './types/navigation';
 import type { DashboardSummaryResponse } from './types/dashboard';
+import type { PageId } from './types/navigation';
+
+import {
+  navItems,
+  pageFromHash,
+  hashFromPage,
+} from './types/navigation';
+
+// ======================================================
+// 6. KOMPONEN UTAMA
+// ======================================================
 
 export function App() {
-  const [activePage, setActivePage] = useState<PageId>('dashboard');
-  const [mobileOpen, setMobileOpen] = useState<boolean>(false);
 
-  const [dashboardData, setDashboardData] = useState<DashboardSummaryResponse | null>(null);
-  const [isDashboardLoading, setIsDashboardLoading] = useState<boolean>(false);
-  const [dashboardError, setDashboardError] = useState<string | null>(null);
+  // ----------------------------------------------------
+  // STATE NAVIGASI
+  // ----------------------------------------------------
 
-  const [healthResult, setHealthResult] = useState<HealthCheckResult>({
-    status: 'checking',
-    checkedAt: new Date(),
-  });
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [activePage, setActivePage] = useState<PageId>(
+    () => pageFromHash(window.location.hash)
+  );
+
+  const [mobileOpen, setMobileOpen] = useState<boolean>(
+    false
+  );
+
+  // ----------------------------------------------------
+  // STATE DASHBOARD
+  // ----------------------------------------------------
+
+  const [dashboardData, setDashboardData] =
+    useState<DashboardSummaryResponse | null>(null);
+
+  const [isDashboardLoading, setIsDashboardLoading] =
+    useState<boolean>(false);
+
+  const [dashboardError, setDashboardError] =
+    useState<string | null>(null);
+
+  // ----------------------------------------------------
+  // STATE BACKEND
+  // ----------------------------------------------------
+
+  const [healthResult, setHealthResult] =
+    useState<HealthCheckResult>({
+      status: 'checking',
+      checkedAt: new Date(),
+    });
+
+  const [isLoading, setIsLoading] =
+    useState<boolean>(true);
+
+  // ====================================================
+  // 7. NAVIGASI HALAMAN
+  // ====================================================
+
+  const navigate = useCallback((page: PageId) => {
+
+    setActivePage(page);
+    setMobileOpen(false);
+
+    const targetHash = hashFromPage(page);
+
+    if (window.location.hash !== targetHash) {
+      window.location.hash = targetHash;
+    }
+
+    window.scrollTo({
+      top: 0,
+      behavior: 'auto',
+    });
+
+  }, []);
+
+  // ====================================================
+  // 8. MENDUKUNG BACK DAN FORWARD BROWSER
+  // ====================================================
+
+  useEffect(() => {
+
+    if (!window.location.hash) {
+      window.history.replaceState(
+        null,
+        '',
+        hashFromPage('dashboard')
+      );
+    }
+
+    const handleHashChange = () => {
+      setActivePage(
+        pageFromHash(window.location.hash)
+      );
+
+      setMobileOpen(false);
+    };
+
+    window.addEventListener(
+      'hashchange',
+      handleHashChange
+    );
+
+    return () => {
+      window.removeEventListener(
+        'hashchange',
+        handleHashChange
+      );
+    };
+
+  }, []);
+
+  // ====================================================
+  // 9. MEMERIKSA KONEKSI BACKEND
+  // ====================================================
 
   const fetchHealth = useCallback(async () => {
+
     setIsLoading(true);
+
     try {
+
       const result = await checkBackendHealth();
+
       setHealthResult(result);
-    } catch (error) {
+
+    } catch (error: unknown) {
+
       setHealthResult({
         status: 'disconnected',
+
         error:
           error instanceof Error
             ? error.message
             : 'Terjadi kesalahan tidak terduga',
+
         checkedAt: new Date(),
       });
+
     } finally {
       setIsLoading(false);
     }
+
   }, []);
 
+  // Cek koneksi backend secara berkala.
+  useEffect(() => {
+
+    void fetchHealth();
+
+    const interval = window.setInterval(() => {
+      void fetchHealth();
+    }, 30000);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+
+  }, [fetchHealth]);
+
+  // ====================================================
+  // 10. MEMUAT RINGKASAN DASHBOARD
+  // ====================================================
+
   const loadDashboard = useCallback(async () => {
+
     setIsDashboardLoading(true);
     setDashboardError(null);
+
     try {
+
       const data = await fetchDashboardSummary();
+
       setDashboardData(data);
-    } catch (err) {
-      console.warn('Gagal memuat ringkasan dashboard aktif:', err);
-      const msg = err instanceof Error ? err.message : 'Gagal menghubungi server backend';
-      setDashboardError(msg);
+
+    } catch (error: unknown) {
+
+      console.warn(
+        'Gagal memuat ringkasan dashboard:',
+        error
+      );
+
+      setDashboardError(
+        error instanceof Error
+          ? error.message
+          : 'Gagal menghubungi server backend'
+      );
+
       setDashboardData(null);
+
     } finally {
       setIsDashboardLoading(false);
     }
+
   }, []);
 
+  // Sinkronkan metadata dataset saat berpindah menu.
   useEffect(() => {
-    fetchHealth();
-    // Auto-check connectivity every 30 seconds
-    const interval = setInterval(fetchHealth, 30000);
-    return () => clearInterval(interval);
-  }, [fetchHealth]);
 
-  useEffect(() => {
-    if (activePage === 'dashboard') {
-      loadDashboard();
+    if (activePage !== 'data-balita') {
+      void loadDashboard();
     }
+
   }, [activePage, loadDashboard]);
 
-  const currentNav = navItems.find((item) => item.id === activePage) ?? navItems[0];
+  // ====================================================
+  // 11. INFORMASI MENU AKTIF
+  // ====================================================
 
-  // Susun 4 kartu statistik utama sesuai arsitektur Stunting Toba
-  const dynamicStatCards = dashboardData && dashboardData.has_active_dataset
-    ? [
-        {
-          label: 'Total Catatan Balita',
-          value: dashboardData.total_records,
-          unit: 'catatan',
-          description: 'Jumlah baris data balita tercatat pada berkas aktif (bukan balita unik)',
-          indicatorBadge: dashboardData.has_status_tbu
-            ? {
-                text: `${dashboardData.stunted_count} Stunting (${dashboardData.stunted_percentage.toFixed(1)}%)`,
-                variant: 'amber' as const,
-              }
-            : undefined,
-          isSynthetic: false,
-        },
-        {
-          label: 'Data Valid',
-          value: dashboardData.valid_records,
-          unit: 'entri',
-          description: 'Catatan yang memenuhi kelengkapan atribut valid',
-          trend: { value: dashboardData.valid_percentage, direction: 'up' as const },
-          isSynthetic: false,
-        },
-        {
-          label: 'Perlu Diperiksa',
-          value: dashboardData.need_check_records,
-          unit: 'entri',
-          description: 'Catatan dengan data kosong atau memerlukan verifikasi kualitas',
-          trend: { value: dashboardData.need_check_percentage, direction: 'down' as const },
-          isSynthetic: false,
-        },
-        {
-          label: 'Cakupan Wilayah',
-          value:
-            dashboardData.has_region
-              ? dashboardData.total_kecamatan > 0
-                ? dashboardData.total_kecamatan
-                : dashboardData.total_puskesmas
-              : 'Belum Ada',
-          unit:
-            dashboardData.has_region
-              ? dashboardData.total_kecamatan > 0
-                ? 'kecamatan'
-                : 'puskesmas'
-              : '',
-          description: dashboardData.has_region
-            ? `${dashboardData.total_kecamatan} kecamatan, ${dashboardData.total_puskesmas} puskesmas, ${dashboardData.total_desa} desa tercakup`
-            : 'Kolom wilayah belum dipetakan pada dataset aktif',
-          isSynthetic: false,
-        },
-      ]
-    : [];
+  const currentNav =
+    navItems.find(
+      (item) => item.id === activePage
+    ) ?? navItems[0];
+
+  // ====================================================
+  // 12. TAMPILAN APLIKASI
+  // ====================================================
 
   return (
     <div className="min-h-screen flex bg-slate-50 font-sans text-slate-800 antialiased">
-      {/* Sidebar Navigasi Kiri */}
+
+      {/* ============================================ */}
+      {/* SIDEBAR */}
+      {/* ============================================ */}
+
       <Sidebar
         activePage={activePage}
-        onNavigate={setActivePage}
-        connectionStatus={healthResult.status}
-        latencyMs={healthResult.latencyMs}
+        onNavigate={navigate}
         mobileOpen={mobileOpen}
         onMobileClose={() => setMobileOpen(false)}
       />
 
-      {/* Konten Utama Kanan */}
+      {/* ============================================ */}
+      {/* AREA KANAN */}
+      {/* ============================================ */}
+
       <div className="flex-1 flex flex-col min-w-0">
+
+        {/* HEADER */}
+
         <Header
           pageTitle={currentNav.label}
           pageDescription={currentNav.description}
-          onSidebarToggle={() => setMobileOpen((prev) => !prev)}
+          onSidebarToggle={() => {
+            setMobileOpen((previous) => !previous);
+          }}
           connectionStatus={healthResult.status}
           onRefreshHealth={fetchHealth}
           isHealthLoading={isLoading}
         />
 
+        {/* ========================================== */}
+        {/* KONTEN HALAMAN */}
+        {/* ========================================== */}
+
         <main className="flex-1 p-5 sm:p-7 lg:p-8 xl:px-10 max-w-[1680px] 2xl:max-w-[1800px] w-full mx-auto space-y-6 sm:space-y-7">
+
+          {/* ======================================== */}
+          {/* HALAMAN 1: DASHBOARD UTAMA */}
+          {/* ======================================== */}
+
           {activePage === 'dashboard' ? (
-            /* ================= EVALUASI KONDISI DASHBOARD ================= */
+
             isDashboardLoading && !dashboardData ? (
-              /* Kondisi 3: API sedang memuat data pertama kali */
+
               <DashboardLoadingSkeleton />
+
             ) : dashboardError && !dashboardData ? (
-              /* Kondisi 4: API gagal diakses */
+
               <>
                 <PageHeader
                   title="Dashboard Utama"
@@ -176,16 +327,17 @@ export function App() {
                   connectionStatus={healthResult.status}
                   latencyMs={healthResult.latencyMs}
                 />
+
                 <DashboardErrorState
                   errorMessage={dashboardError}
                   onRetry={loadDashboard}
                   isRetrying={isDashboardLoading}
                 />
               </>
+
             ) : dashboardData?.has_active_dataset ? (
-              /* Kondisi 2: Dataset aktif tersedia */
+
               <>
-                {/* 1. Header Dashboard */}
                 <PageHeader
                   title="Dashboard Utama"
                   description="Ringkasan pemantauan data balita dan status gizi Kabupaten Toba."
@@ -195,35 +347,41 @@ export function App() {
                   latencyMs={healthResult.latencyMs}
                 />
 
-                {/* 2. Informasi Dataset Aktif */}
                 <ActiveDatasetBanner
-                  filename={dashboardData.filename || 'Dataset Aktif'}
-                  totalRecords={dashboardData.total_records}
-                  validRecords={dashboardData.valid_records}
-                  validPercentage={dashboardData.valid_percentage}
-                  updatedAt={dashboardData.updated_at}
-                  readinessStatus={dashboardData.readiness_status}
-                  onGoToDataBalita={() => setActivePage('data-balita')}
-                  onGoToVisualization={() => setActivePage('visualisasi')}
+                  filename={
+                    dashboardData.filename ||
+                    'Dataset Aktif'
+                  }
+                  totalRecords={
+                    dashboardData.total_records
+                  }
+                  validRecords={
+                    dashboardData.valid_records
+                  }
+                  validPercentage={
+                    dashboardData.valid_percentage
+                  }
+                  updatedAt={
+                    dashboardData.updated_at
+                  }
+                  readinessStatus={
+                    dashboardData.readiness_status
+                  }
+                  onGoToDataBalita={() =>
+                    navigate('data-balita')
+                  }
+                  onGoToVisualization={() =>
+                    navigate('visualisasi')
+                  }
                   onRefresh={loadDashboard}
                   isLoading={isDashboardLoading}
                 />
 
-                {/* 3. Empat Kartu Statistik Utama */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-                  {dynamicStatCards.map((stat) => (
-                    <StatCard key={stat.label} data={stat} isSynthetic={false} />
-                  ))}
-                </div>
-
-                {/* 4. Analisis Pengaruh Berat Lahir terhadap Risiko Stunting */}
-                <BirthWeightDashboardPage
-                  dashboardData={dashboardData}
-                  onGoToDataBalita={() => setActivePage('data-balita')}
-                />
+                <DashboardStage3Page />
               </>
+
             ) : (
-              /* Kondisi 1: Belum ada dataset aktif (Empty State Profesional) */
+
               <>
                 <PageHeader
                   title="Dashboard Utama"
@@ -235,33 +393,96 @@ export function App() {
                 />
 
                 <DashboardEmptyState
-                  onGoToDataBalita={() => setActivePage('data-balita')}
+                  onGoToDataBalita={() =>
+                    navigate('data-balita')
+                  }
                 />
               </>
+
             )
+
           ) : activePage === 'data-balita' ? (
-            <DataBalitaPage onNavigateToVisualisasi={() => setActivePage('visualisasi')} />
-          ) : activePage === 'visualisasi' ? (
-            <VisualizationPage onNavigate={setActivePage} />
-          ) : (
-            <PlaceholderView
-              item={currentNav}
-              onBackToDashboard={() => setActivePage('dashboard')}
+
+            /* ====================================== */
+            /* HALAMAN 2: MANAJEMEN DATA & ETL */
+            /* ====================================== */
+
+            <DataBalitaPage
+              onNavigateToVisualisasi={() =>
+                navigate('visualisasi')
+              }
             />
+
+          ) : activePage === 'visualisasi' ? (
+
+            /* ====================================== */
+            /* HALAMAN 3: VISUALISASI INTERAKTIF */
+            /* ====================================== */
+
+            <VisualizationPage
+              onNavigate={navigate}
+            />
+
+          ) : activePage === 'analisis' ? (
+
+            /* ====================================== */
+            /* HALAMAN 4: ANALISIS FAKTOR RISIKO */
+            /* ====================================== */
+
+            <RiskFactorPage />
+
+          ) : activePage === 'wilayah' ? (
+
+            /* ====================================== */
+            /* HALAMAN 5: PERBANDINGAN WILAYAH */
+            /* ====================================== */
+
+            <RegionComparisonPage />
+
+          ) : activePage === 'tren' ? (
+
+            /* ====================================== */
+            /* HALAMAN 6: TREN STUNTING */
+            /* ====================================== */
+
+            <StuntingTrendPage />
+
+          ) : (
+
+            /* ====================================== */
+            /* HALAMAN 7: KLASIFIKASI MACHINE LEARNING */
+            /* ====================================== */
+
+            <MachineLearningPage />
+
           )}
+
         </main>
 
-        {/* Footer Aplikasi */}
+        {/* ========================================== */}
+        {/* FOOTER */}
+        {/* ========================================== */}
+
         <footer className="mt-auto border-t border-slate-200 bg-white py-4 px-6 sm:px-8 text-center text-[12px] text-slate-500">
+
           <p>
-            Stunting Toba • Inisiatif Analisis Faktor Risiko Stunting Kabupaten Toba
+            Stunting Toba • Inisiatif Analisis Faktor Risiko
+            Stunting Kabupaten Toba
           </p>
+
           <p className="mt-0.5 text-[11px] text-slate-400">
+
             {dashboardData?.has_active_dataset
+
               ? `Terhubung dengan dataset aktif: ${dashboardData.filename} (${dashboardData.total_records.toLocaleString('id-ID')} catatan)`
-              : 'Belum ada dataset aktif yang terhubung. Silakan unggah berkas melalui menu Data Balita.'}
+
+              : 'Belum ada dataset aktif yang terhubung. Silakan unggah berkas melalui menu Manajemen Data & ETL.'
+            }
+
           </p>
+
         </footer>
+
       </div>
     </div>
   );

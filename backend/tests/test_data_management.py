@@ -1,14 +1,3 @@
-"""
-Pengujian komprehensif untuk modul Manajemen Data Balita:
-- Unggah file CSV valid
-- Unggah file Excel (.xlsx) valid
-- File kosong dan file rusak
-- Format file tidak didukung
-- Header kosong/rusak
-- Deteksi duplikasi dan nilai kosong
-- Pemetaan kolom standar
-- Verifikasi keamanan: Penyamaran nilai PII
-"""
 import io
 import csv
 import pytest
@@ -243,6 +232,10 @@ def test_pii_masking_in_preview():
 # ------------------ 9. Test Column Mapping Validation Endpoint ------------------
 
 def test_validate_mapping_endpoint():
+    # Pemetaan diverifikasi terhadap header yang BENAR-BENAR ada di dataset aktif.
+    client.post('/api/data/upload-preview', files={'file':(
+        'mapping_check.csv', create_synthetic_csv_bytes(
+            ['Umur','Gender','Panjang','Bobot'],[['24','L','85','10.5']]), 'text/csv')})
     # Pemetaan lengkap
     valid_payload = {
         "column_mapping": {
@@ -390,7 +383,7 @@ def test_anthropometry_and_birth_factors_collision_free_mapping():
         "bb": "berat_badan",
         "tb": "tinggi_badan",
         "usia_bulan": "usia_saat_ukur",
-        "lila_cm": "lila_ibu",
+        "lila_cm": "lila_balita_cm",
     }
 
     for col_name, expected_std in expected_mappings.items():

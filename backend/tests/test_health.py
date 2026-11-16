@@ -1,6 +1,3 @@
-"""
-Pengujian otomatis untuk endpoint Health Check menggunakan pytest dan TestClient dari FastAPI.
-"""
 from fastapi.testclient import TestClient
 from app.main import app
 

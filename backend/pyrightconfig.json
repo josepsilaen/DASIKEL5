@@ -1,17 +1,22 @@
 {
   "include": [
-    "app",
-    "tests"
+    "backend/app",
+    "backend/tests"
   ],
   "exclude": [
+    "**/node_modules",
     "**/__pycache__",
-    "venv"
+    "**/.pytest_cache",
+    "backend/venv",
+    "backend/.venv",
+    "backend/var"
   ],
-  "venvPath": ".",
-  "venv": "venv",
+  "venvPath": "backend",
+  "venv": ".venv",
   "extraPaths": [
-    "."
+    "backend"
   ],
   "pythonVersion": "3.13",
-  "pythonPlatform": "Windows"
+  "pythonPlatform": "Windows",
+  "typeCheckingMode": "basic"
 }

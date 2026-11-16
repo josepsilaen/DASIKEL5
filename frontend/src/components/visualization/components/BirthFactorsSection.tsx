@@ -16,6 +16,7 @@ import type { DashboardSection1BirthWeight, DashboardSection2AgeCohort } from '.
 import { DashboardBoxPlotVisual } from '../../dashboard/tableau/DashboardBoxPlotVisual';
 
 interface BirthFactorsSectionProps {
+  statusFilter?: string | null;
   section1: DashboardSection1BirthWeight;
   section2: DashboardSection2AgeCohort;
   onGoToDataBalita?: () => void;
@@ -23,26 +24,34 @@ interface BirthFactorsSectionProps {
 
 export const BirthFactorsSection: React.FC<BirthFactorsSectionProps> = ({
   section1,
+  statusFilter,
   section2,
 }) => {
   const hasBirthWeight = section1.has_column && section1.total_valid > 0;
   const hasAgeCohort = section2.has_column && section2.cohorts.length > 0;
 
   // Siapkan data untuk Visualisasi 1: Box plot Z-score TB/U per kelompok usia
-  const boxPlotAgeItems = section2.cohorts.map((c, idx) => {
-    const palette = ['#0284c7', '#0d9488', '#16a34a', '#ca8a04', '#ea580c', '#e11d48'];
+
+const boxPlotAgeItems = section2.cohorts
+  .filter(
+    (c) =>
+      c.boxplot != null &&
+      c.boxplot.count >= 5
+  )
+  .map((c, idx) => {
+    const palette = [
+      '#0284c7',
+      '#0d9488',
+      '#16a34a',
+      '#ca8a04',
+      '#ea580c',
+      '#e11d48',
+    ];
+
     return {
       label: c.cohort_label,
       color: palette[idx % palette.length],
-      stats: c.boxplot || {
-        min_value: -3,
-        q1: -2,
-        median: -1.5,
-        q3: -0.8,
-        max_value: 1,
-        mean: c.mean_zscore_tbu || -1.5,
-        count: c.total_count,
-      },
+      stats: c.boxplot!,
     };
   });
 
@@ -100,7 +109,7 @@ export const BirthFactorsSection: React.FC<BirthFactorsSectionProps> = ({
           <span className="text-xs text-slate-400 font-mono">Standar WHO Anthro</span>
         </div>
 
-        {hasAgeCohort ? (
+        {hasAgeCohort && boxPlotAgeItems.length > 0 ? (
           <div>
             <DashboardBoxPlotVisual
               title="Sebaran Z-Score TB/U per Kohor Usia"
@@ -136,7 +145,7 @@ export const BirthFactorsSection: React.FC<BirthFactorsSectionProps> = ({
               </span>
               <div>
                 <h4 className="text-sm font-bold text-slate-800">
-                  Prevalensi Stunting Berdasarkan Kategori BBLR
+                  {statusFilter ? 'Jumlah Catatan Berdasarkan Kategori BBLR' : 'Proporsi Stunting Berdasarkan Kategori BBLR'}
                 </h4>
                 <p className="text-xs text-slate-500">
                   Perbandingan proporsi balita stunting pada kelompok BBLR (&lt; 2,5 kg) vs Normal (&ge; 2,5 kg)
@@ -150,16 +159,16 @@ export const BirthFactorsSection: React.FC<BirthFactorsSectionProps> = ({
                   <BarChart data={bblrBarData} margin={{ top: 10, right: 20, left: -10, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                     <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                    <YAxis unit="%" domain={[0, 100]} tick={{ fontSize: 11 }} />
+                    <YAxis unit={statusFilter ? '' : '%'} domain={statusFilter ? [0, 'auto'] : [0, 100]} allowDecimals={!statusFilter} tick={{ fontSize: 11 }} />
                     <Tooltip
                       formatter={(val: any, _name: any, item: any) => [
-                        `${Number(val).toFixed(1)}% (${item.payload.stunting_count} stunting dari ${item.payload.total_count} balita)`,
+                        (statusFilter ? `${Number(val)} catatan` : `${Number(val).toFixed(1)}% (${item.payload.stunting_count} stunting dari ${item.payload.total_count} balita)`),
                         'Prevalensi Stunting',
                       ]}
                       contentStyle={{ backgroundColor: '#0f172a', borderRadius: '8px', color: '#fff', fontSize: '12px' }}
                     />
                     <Bar
-                      dataKey="stunting_rate"
+                      dataKey={statusFilter ? 'total_count' : 'stunting_rate'}
                       name="Prevalensi Stunting (%)"
                       fill="#ef4444"
                       radius={[6, 6, 0, 0]}

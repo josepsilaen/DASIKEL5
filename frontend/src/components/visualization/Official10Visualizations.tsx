@@ -26,9 +26,11 @@ interface Official10VisualizationsProps {
   stuntedCount: number;
   stuntingPercentage: number;
   selectedDesa: string | null;
+  statusFilter?: string | null;
   onSelectDesa: (desa: string) => void;
   onResetDesa: () => void;
   onGoToDataBalita: () => void;
+  
 }
 
 export const Official10Visualizations: React.FC<Official10VisualizationsProps> = ({
@@ -38,9 +40,11 @@ export const Official10Visualizations: React.FC<Official10VisualizationsProps> =
   stuntedCount,
   stuntingPercentage,
   selectedDesa,
+  statusFilter,
   onSelectDesa,
   onResetDesa,
   onGoToDataBalita,
+  
 }) => {
   const [activeTab, setActiveTab] = useState<OfficialVizTab>('all');
 
@@ -52,6 +56,10 @@ export const Official10Visualizations: React.FC<Official10VisualizationsProps> =
   const sec4 = analytics.section4_posyandu_parenting;
   const sec5 = analytics.section5_maternal_factors;
   const timeSeries = analytics.time_series_trend;
+
+  const regionCount = (
+    sec3.kecamatan_spread ?? []
+  ).filter((area) => area.total_balita > 0).length;
 
   const hasAdditionalData =
     sec4.has_naik_bb || sec4.has_kelas_ibu || sec5.has_lila || sec5.has_panjang_lahir;
@@ -87,18 +95,18 @@ export const Official10Visualizations: React.FC<Official10VisualizationsProps> =
         <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs flex items-center justify-between">
           <div className="space-y-1">
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              Prevalensi Stunting
+              Proporsi Stunting Dataset
             </span>
             <div className="flex items-baseline gap-2">
               <span className="text-2xl font-black text-rose-600">
-                {stuntingPercentage.toFixed(1)}%
+                {statusFilter ? '—' : `${stuntingPercentage.toFixed(1)}%`}
               </span>
               <span className="text-xs text-slate-500">
                 ({stuntedCount.toLocaleString('id-ID')} balita)
               </span>
             </div>
             <p className="text-[11px] text-slate-400">
-              Berdasarkan indikator baku WHO TB/U &lt; -2 SD
+              {statusFilter ? 'Proporsi tidak ditampilkan ketika status dipilih.' : 'Proporsi dalam dataset, bukan prevalensi populasi.'}
             </p>
           </div>
           <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
@@ -156,18 +164,18 @@ export const Official10Visualizations: React.FC<Official10VisualizationsProps> =
         <div className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs flex items-center justify-between">
           <div className="space-y-1">
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              Desa di Atas Rata-Rata
+              Cakupan Kecamatan
             </span>
             <div className="flex items-baseline gap-2">
               <span className="text-2xl font-black text-rose-700">
-                {sec3.desas_above_avg_count}
+                {regionCount}
               </span>
               <span className="text-xs text-slate-500">
-                dari {sec3.total_desas_count} desa
+                kecamatan terpilih
               </span>
             </div>
             <p className="text-[11px] text-slate-400">
-              Desa dengan prevalensi &gt; {sec3.avg_desa_stunting_rate.toFixed(1)}%
+              Kecamatan dengan catatan sesuai filter
             </p>
           </div>
           <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-700 flex items-center justify-center shrink-0">
@@ -231,6 +239,7 @@ export const Official10Visualizations: React.FC<Official10VisualizationsProps> =
       {/* Konten Bagian Analisis Berdasarkan Tab Aktif */}
       {(activeTab === 'all' || activeTab === 'kelahiran') && (
         <BirthFactorsSection
+          statusFilter={statusFilter}
           section1={sec1}
           section2={sec2}
           onGoToDataBalita={onGoToDataBalita}
@@ -239,6 +248,7 @@ export const Official10Visualizations: React.FC<Official10VisualizationsProps> =
 
       {(activeTab === 'all' || activeTab === 'usia') && (
         <AgeCohortSection
+          statusFilter={statusFilter}
           section2={sec2}
           onGoToDataBalita={onGoToDataBalita}
         />
@@ -250,6 +260,7 @@ export const Official10Visualizations: React.FC<Official10VisualizationsProps> =
           selectedDesa={selectedDesa}
           onSelectDesa={onSelectDesa}
           onGoToDataBalita={onGoToDataBalita}
+          statusFilter={statusFilter}
         />
       )}
 
@@ -258,11 +269,13 @@ export const Official10Visualizations: React.FC<Official10VisualizationsProps> =
           section4={sec4}
           timeSeries={timeSeries}
           onGoToDataBalita={onGoToDataBalita}
+          statusFilter={statusFilter}
         />
       )}
 
       {(activeTab === 'all' || activeTab === 'tambahan') && hasAdditionalData && (
         <AdditionalAnalysisSection
+          statusFilter={statusFilter}
           section4={sec4}
           section5={sec5}
           onGoToDataBalita={onGoToDataBalita}

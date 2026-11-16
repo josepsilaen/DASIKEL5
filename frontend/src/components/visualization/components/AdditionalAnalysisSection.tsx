@@ -18,6 +18,7 @@ import type {
 } from '../../../types/dashboard';
 
 interface AdditionalAnalysisSectionProps {
+  statusFilter?: string | null;
   section4: DashboardSection4PosyanduParenting;
   section5: DashboardSection5MaternalFactors;
   onGoToDataBalita: () => void;
@@ -25,6 +26,7 @@ interface AdditionalAnalysisSectionProps {
 
 export const AdditionalAnalysisSection: React.FC<AdditionalAnalysisSectionProps> = ({
   section4,
+  statusFilter,
   section5,
 }) => {
   const hasNaikBb = section4.has_naik_bb && section4.naik_bb_categories.length > 0;
@@ -98,7 +100,7 @@ export const AdditionalAnalysisSection: React.FC<AdditionalAnalysisSectionProps>
                 <HeartPulse className="w-4 h-4 text-teal-600" />
                 <div>
                   <h4 className="text-sm font-bold text-slate-800">
-                    Prevalensi Stunting Berdasarkan Status Kenaikan Berat Badan (KMS)
+                    {statusFilter ? 'Jumlah Catatan' : 'Proporsi Stunting'} Berdasarkan Status Kenaikan Berat Badan (KMS)
                   </h4>
                   <p className="text-[11px] text-amber-700 font-medium">
                     * Khusus data pemantauan penimbangan Puskesmas Silaen (N / T / O / B)
@@ -111,15 +113,15 @@ export const AdditionalAnalysisSection: React.FC<AdditionalAnalysisSectionProps>
                   <BarChart data={naikBbData} margin={{ top: 10, right: 20, left: -10, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                     <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                    <YAxis unit="%" domain={[0, 100]} tick={{ fontSize: 11 }} />
+                    <YAxis unit={statusFilter ? '' : '%'} domain={statusFilter ? [0, 'auto'] : [0, 100]} allowDecimals={!statusFilter} tick={{ fontSize: 11 }} />
                     <Tooltip
                       formatter={(val: any, _name: any, item: any) => [
-                        `${Number(val).toFixed(1)}% (${item.payload.stunting_count} stunting dari ${item.payload.total} balita)`,
+                        (statusFilter ? `${Number(val)} catatan` : `${Number(val).toFixed(1)}% (${item.payload.stunting_count} stunting dari ${item.payload.total} balita)`),
                         'Prevalensi Stunting',
                       ]}
                       contentStyle={{ backgroundColor: '#0f172a', borderRadius: '8px', color: '#fff', fontSize: '12px' }}
                     />
-                    <Bar dataKey="stunting_rate" name="Prevalensi Stunting" fill="#ef4444" radius={[6, 6, 0, 0]} maxBarSize={36} />
+                    <Bar dataKey={statusFilter ? 'total' : 'stunting_rate'} name="Prevalensi Stunting" fill="#ef4444" radius={[6, 6, 0, 0]} maxBarSize={36} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -138,7 +140,7 @@ export const AdditionalAnalysisSection: React.FC<AdditionalAnalysisSectionProps>
                 <Users className="w-4 h-4 text-teal-600" />
                 <div>
                   <h4 className="text-sm font-bold text-slate-800">
-                    Prevalensi Stunting Berdasarkan Keikutsertaan Kelas Ibu Balita
+                    {statusFilter ? 'Jumlah Catatan' : 'Proporsi Stunting'} Berdasarkan Keikutsertaan Kelas Ibu Balita
                   </h4>
                   <p className="text-xs text-slate-500">Perbandingan tingkat stunting ibu aktif vs tidak aktif kelas bina balita</p>
                 </div>
@@ -149,15 +151,15 @@ export const AdditionalAnalysisSection: React.FC<AdditionalAnalysisSectionProps>
                   <BarChart data={kelasIbuData} margin={{ top: 10, right: 20, left: -10, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                     <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                    <YAxis unit="%" domain={[0, 100]} tick={{ fontSize: 11 }} />
+                    <YAxis unit={statusFilter ? '' : '%'} domain={statusFilter ? [0, 'auto'] : [0, 100]} allowDecimals={!statusFilter} tick={{ fontSize: 11 }} />
                     <Tooltip
                       formatter={(val: any, _name: any, item: any) => [
-                        `${Number(val).toFixed(1)}% (${item.payload.stunting_count} stunting dari ${item.payload.total} balita)`,
+                        (statusFilter ? `${Number(val)} catatan` : `${Number(val).toFixed(1)}% (${item.payload.stunting_count} stunting dari ${item.payload.total} balita)`),
                         'Prevalensi Stunting',
                       ]}
                       contentStyle={{ backgroundColor: '#0f172a', borderRadius: '8px', color: '#fff', fontSize: '12px' }}
                     />
-                    <Bar dataKey="stunting_rate" name="Prevalensi Stunting" fill="#0d9488" radius={[6, 6, 0, 0]} maxBarSize={48} />
+                    <Bar dataKey={statusFilter ? 'total' : 'stunting_rate'} name="Prevalensi Stunting" fill="#0d9488" radius={[6, 6, 0, 0]} maxBarSize={48} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -176,7 +178,7 @@ export const AdditionalAnalysisSection: React.FC<AdditionalAnalysisSectionProps>
                 <Users className="w-4 h-4 text-teal-600" />
                 <div>
                   <h4 className="text-sm font-bold text-slate-800">
-                    Prevalensi Stunting Berdasarkan Kategori LiLA Ibu
+                    {statusFilter ? 'Jumlah Catatan' : 'Proporsi Stunting'} Berdasarkan Kategori LiLA Ibu
                   </h4>
                   <p className="text-[11px] text-amber-700 font-medium">
                     * Khusus data Puskesmas Silaen (Ambang KEK: &lt; 23,5 cm Kemenkes RI)
@@ -189,15 +191,15 @@ export const AdditionalAnalysisSection: React.FC<AdditionalAnalysisSectionProps>
                   <BarChart data={lilaBarData} margin={{ top: 10, right: 20, left: -10, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                     <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                    <YAxis unit="%" domain={[0, 100]} tick={{ fontSize: 11 }} />
+                    <YAxis unit={statusFilter ? '' : '%'} domain={statusFilter ? [0, 'auto'] : [0, 100]} allowDecimals={!statusFilter} tick={{ fontSize: 11 }} />
                     <Tooltip
                       formatter={(val: any, _name: any, item: any) => [
-                        `${Number(val).toFixed(1)}% (${item.payload.stunting_count} stunting dari ${item.payload.total} balita)`,
+                        (statusFilter ? `${Number(val)} catatan` : `${Number(val).toFixed(1)}% (${item.payload.stunting_count} stunting dari ${item.payload.total} balita)`),
                         'Prevalensi Stunting',
                       ]}
                       contentStyle={{ backgroundColor: '#0f172a', borderRadius: '8px', color: '#fff', fontSize: '12px' }}
                     />
-                    <Bar dataKey="stunting_rate" name="Prevalensi Stunting" fill="#ef4444" radius={[6, 6, 0, 0]} maxBarSize={48} />
+                    <Bar dataKey={statusFilter ? 'total' : 'stunting_rate'} name="Prevalensi Stunting" fill="#ef4444" radius={[6, 6, 0, 0]} maxBarSize={48} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>

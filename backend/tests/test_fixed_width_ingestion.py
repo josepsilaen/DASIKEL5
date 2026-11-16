@@ -1,13 +1,3 @@
-"""
-Pengujian komprehensif untuk Data Ingestion Engine:
-- Deteksi berkas CSV satu kolom teks / format laporan ekspor
-- Rekonstruksi fixed-width hanya jika memiliki batas kolom yang terbukti (segmented ruler)
-- Pengenalan dan penggabungan header multi-baris (multi-row header)
-- Pencegahan pemecahan teks sembarangan berdasarkan spasi (nama majemuk balita & wilayah utuh)
-- Pencegahan auto-mapping pada kolom Unnamed atau 'Data' generik
-- Peringatan profesional (QualityIssue) saat format tidak dapat direkonstruksi secara andal
-- Perlindungan PII pada data inspeksi dan pratinjau teks mentah
-"""
 import io
 import pytest
 from starlette.testclient import TestClient

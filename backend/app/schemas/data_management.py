@@ -1,8 +1,3 @@
-"""
-Skema Pydantic untuk fitur Manajemen Data Balita.
-Mencakup model untuk preview dataset, ringkasan kualitas data,
-pemetaan kolom standar, dan status kesiapan analisis.
-"""
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
 
